@@ -197,6 +197,41 @@ export type Database = {
           },
         ]
       }
+      specialties: {
+        Row: {
+          clinic_id: string | null
+          created_at: string
+          id: string
+          price: number
+          specialty_name: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id?: string | null
+          created_at?: string
+          id?: string
+          price?: number
+          specialty_name: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string | null
+          created_at?: string
+          id?: string
+          price?: number
+          specialty_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "specialties_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users_profiles: {
         Row: {
           created_at: string
@@ -232,9 +267,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_specialty: {
+        Args: { clinic_id: string; specialty_name: string; price: number }
+        Returns: undefined
+      }
       generate_unique_slug: {
         Args: { clinic_name: string }
         Returns: string
+      }
+      get_specialties_pricing: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          specialty_name: string
+          price: number
+          clinic_id: string
+        }[]
+      }
+      update_specialty_price: {
+        Args: { specialty_id: string; new_price: number }
+        Returns: undefined
       }
     }
     Enums: {

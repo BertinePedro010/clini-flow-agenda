@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, Save, X, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,7 +44,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
     try {
       setLoadingEspecialidades(true);
       const { data, error } = await supabase
-        .rpc('get_specialties_pricing');
+        .from('specialties')
+        .select('*')
+        .order('specialty_name');
 
       if (error) {
         console.error('Error fetching specialties:', error);

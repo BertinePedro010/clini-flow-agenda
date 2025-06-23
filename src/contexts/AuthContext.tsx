@@ -62,11 +62,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (error) {
                 console.error('Error fetching profile:', error);
               } else {
+                // Check if user is admin by email (for demo purposes)
+                const isUserAdmin = session.user.email === 'pedrobertine32@gmail.com';
+                
                 setProfile({
                   id: profileData.id,
                   name: profileData.name,
-                  role: 'user', // Default role from users_profiles table
-                  status: 'active', // Default status
+                  role: isUserAdmin ? 'admin' : 'user',
+                  status: 'active',
                   created_at: profileData.created_at,
                   updated_at: profileData.updated_at
                 });

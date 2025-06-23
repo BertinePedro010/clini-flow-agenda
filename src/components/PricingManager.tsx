@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Edit, Save, X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,7 +27,9 @@ const PricingManager = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .rpc('get_specialties_pricing');
+        .from('specialties')
+        .select('*')
+        .order('specialty_name');
 
       if (error) {
         console.error('Error fetching specialties:', error);
@@ -55,10 +56,12 @@ const PricingManager = () => {
   const handleSavePrice = async (id: string) => {
     try {
       const { error } = await supabase
-        .rpc('update_specialty_price', {
-          specialty_id: id,
-          new_price: editingPrice
-        });
+        .from('specialties')
+        .update({ 
+          price: editingPrice,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
 
       if (error) {
         console.error('Error updating price:', error);
@@ -91,23 +94,60 @@ const PricingManager = () => {
     }
 
     try {
-      // Get the first clinic ID (assuming single clinic for now)
-      const { data: clinics } = await supabase
+      // Get the first clinic ID or create a default one
+      let { data: clinics, error: clinicsError } = await supabase
         .from('clinics')
         .select('id')
         .limit(1);
 
-      if (!clinics || clinics.length === 0) {
+      if (clinicsError) {
+        console.error('Error fetching clinics:', clinicsError);
         toast({
           title: "Erro",
-          description: "Nenhuma clínica encontrada.",
+          description: "Erro ao buscar clínicas.",
           variant: "destructive",
         });
         return;
       }
 
+      // If no clinics exist, create a default one
+      if (!clinics || clinics.length === 0) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) {
+          toast({
+            title: "Erro",
+            description: "Usuário não autenticado.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { data: newClinic, error: createError } = await supabase
+          .from('clinics')
+          .insert({
+            name: 'Clínica Principal',
+            slug: 'clinica-principal',
+            owner_id: userData.user.id,
+            phone: '(11) 99999-9999'
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating clinic:', createError);
+          toast({
+            title: "Erro",
+            description: "Erro ao criar clínica padrão.",
+            variant: "destructive",
+          });
+          return;
+        }
+        clinics = [newClinic];
+      }
+
       const { error } = await supabase
-        .rpc('add_specialty', {
+        .from('specialties')
+        .insert({
           clinic_id: clinics[0].id,
           specialty_name: newSpecialty.name,
           price: newSpecialty.price
