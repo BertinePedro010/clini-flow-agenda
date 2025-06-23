@@ -28,9 +28,7 @@ const PricingManager = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('specialties_pricing')
-        .select('*')
-        .order('specialty_name');
+        .rpc('get_specialties_pricing');
 
       if (error) {
         console.error('Error fetching specialties:', error);
@@ -57,12 +55,10 @@ const PricingManager = () => {
   const handleSavePrice = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('specialties_pricing')
-        .update({ 
-          price: editingPrice,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
+        .rpc('update_specialty_price', {
+          specialty_id: id,
+          new_price: editingPrice
+        });
 
       if (error) {
         console.error('Error updating price:', error);
@@ -111,8 +107,7 @@ const PricingManager = () => {
       }
 
       const { error } = await supabase
-        .from('specialties_pricing')
-        .insert({
+        .rpc('add_specialty', {
           clinic_id: clinics[0].id,
           specialty_name: newSpecialty.name,
           price: newSpecialty.price

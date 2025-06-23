@@ -45,9 +45,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
     try {
       setLoadingEspecialidades(true);
       const { data, error } = await supabase
-        .from('specialties_pricing')
-        .select('*')
-        .order('specialty_name');
+        .rpc('get_specialties_pricing');
 
       if (error) {
         console.error('Error fetching specialties:', error);
