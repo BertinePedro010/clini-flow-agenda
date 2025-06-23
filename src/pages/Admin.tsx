@@ -11,7 +11,6 @@ import { Users, Shield, Ban, Trash2, ArrowLeft } from 'lucide-react';
 
 interface UserProfile {
   id: string;
-  email: string;
   name: string;
   role: 'user' | 'admin';
   status: 'active' | 'blocked';
@@ -41,7 +40,7 @@ const Admin = () => {
     try {
       setLoadingUsers(true);
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('users_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -53,7 +52,16 @@ const Admin = () => {
           variant: "destructive",
         });
       } else {
-        setUsers(data || []);
+        // Map the data to match our interface
+        const mappedUsers: UserProfile[] = (data || []).map(user => ({
+          id: user.id,
+          name: user.name,
+          role: 'user' as 'user' | 'admin', // Default since users_profiles doesn't have role
+          status: 'active' as 'active' | 'blocked', // Default since users_profiles doesn't have status
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        }));
+        setUsers(mappedUsers);
       }
     } catch (error) {
       console.error('Error in fetchUsers:', error);
@@ -66,25 +74,11 @@ const Admin = () => {
     try {
       const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
       
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Error updating user status:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o status do usuário.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sucesso",
-          description: `Usuário ${newStatus === 'blocked' ? 'bloqueado' : 'desbloqueado'} com sucesso.`,
-        });
-        fetchUsers();
-      }
+      // For now, we'll just show a message since the users_profiles table doesn't have status
+      toast({
+        title: "Funcionalidade em desenvolvimento",
+        description: "A funcionalidade de bloquear/desbloquear usuários será implementada em breve.",
+      });
     } catch (error) {
       console.error('Error in handleBlockUser:', error);
     }
@@ -97,7 +91,7 @@ const Admin = () => {
 
     try {
       const { error } = await supabase
-        .from('user_profiles')
+        .from('users_profiles')
         .delete()
         .eq('id', userId);
 
@@ -211,9 +205,6 @@ const Admin = () => {
                       <h3 className="font-semibold text-slate-800">
                         {userProfile.name}
                       </h3>
-                      <p className="text-sm text-slate-600">
-                        {userProfile.email}
-                      </p>
                       <p className="text-xs text-slate-500">
                         Cadastrado em: {new Date(userProfile.created_at).toLocaleDateString('pt-BR')}
                       </p>

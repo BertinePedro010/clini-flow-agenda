@@ -6,7 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
   id: string;
-  email: string;
   name: string;
   role: 'user' | 'admin';
   status: 'active' | 'blocked';
@@ -55,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(async () => {
             try {
               const { data: profileData, error } = await supabase
-                .from('user_profiles')
+                .from('users_profiles')
                 .select('*')
                 .eq('id', session.user.id)
                 .single();
@@ -63,7 +62,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (error) {
                 console.error('Error fetching profile:', error);
               } else {
-                setProfile(profileData);
+                setProfile({
+                  id: profileData.id,
+                  name: profileData.name,
+                  role: 'user', // Default role from users_profiles table
+                  status: 'active', // Default status
+                  created_at: profileData.created_at,
+                  updated_at: profileData.updated_at
+                });
               }
             } catch (error) {
               console.error('Error in profile fetch:', error);

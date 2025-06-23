@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
-import { Calendar, Save, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Save, X, DollarSign } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppointmentFormProps {
   onSubmit: (data: any) => void;
@@ -16,7 +17,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
     hora: initialData?.hora || '',
     observacoes: initialData?.observacoes || '',
     status: initialData?.status || 'confirmado',
+    especialidade: initialData?.especialidade || '',
+    preco: initialData?.preco || 0,
   });
+
+  const [especialidades, setEspecialidades] = useState<any[]>([]);
+  const [loadingEspecialidades, setLoadingEspecialidades] = useState(true);
 
   // Mock data - será substituído por dados reais do Supabase
   const pacientes = [
@@ -31,16 +37,51 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
     { id: 3, nome: 'Dr. Pedro Alves', especialidade: 'Ortopedia' },
   ];
 
+  useEffect(() => {
+    fetchEspecialidades();
+  }, []);
+
+  const fetchEspecialidades = async () => {
+    try {
+      setLoadingEspecialidades(true);
+      const { data, error } = await supabase
+        .from('specialties_pricing')
+        .select('*')
+        .order('specialty_name');
+
+      if (error) {
+        console.error('Error fetching specialties:', error);
+      } else {
+        setEspecialidades(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchEspecialidades:', error);
+    } finally {
+      setLoadingEspecialidades(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    
+    if (name === 'especialidade') {
+      const selectedEspecialidade = especialidades.find(esp => esp.specialty_name === value);
+      setFormData({
+        ...formData,
+        [name]: value,
+        preco: selectedEspecialidade ? selectedEspecialidade.price : 0,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
   };
 
   return (
@@ -85,7 +126,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
               value={formData.medicoId}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus: border-blue-500 transition-colors"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             >
               <option value="">Selecione o médico</option>
               {medicos.map((medico) => (
@@ -94,6 +135,48 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Especialidade/Exame *
+            </label>
+            <select
+              name="especialidade"
+              value={formData.especialidade}
+              onChange={handleChange}
+              required
+              disabled={loadingEspecialidades}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            >
+              <option value="">
+                {loadingEspecialidades ? 'Carregando...' : 'Selecione a especialidade'}
+              </option>
+              {especialidades.map((especialidade) => (
+                <option key={especialidade.id} value={especialidade.specialty_name}>
+                  {especialidade.specialty_name} - R$ {Number(especialidade.price).toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Preço
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input
+                type="number"
+                name="preco"
+                value={formData.preco}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="0,00"
+              />
+            </div>
           </div>
 
           <div>
