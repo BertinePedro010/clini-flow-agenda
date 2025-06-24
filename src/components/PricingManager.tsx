@@ -4,6 +4,14 @@ import { DollarSign, Plus, Edit3, Save, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useClinic } from '@/contexts/ClinicContext';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface Specialty {
   id: string;
@@ -162,108 +170,137 @@ const PricingManager = () => {
         <h2 className="text-xl font-semibold text-slate-800">Tabela de Preços</h2>
         <button
           onClick={() => setShowAddForm(true)}
-          className="flex items-center medical-button text-sm"
+          className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
         >
           <Plus className="w-4 h-4 mr-1" />
-          Adicionar
+          Adicionar Especialidade
         </button>
       </div>
 
       {showAddForm && (
         <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <input
               type="text"
               placeholder="Nome da especialidade"
               value={newSpecialty.name}
               onChange={(e) => setNewSpecialty({ ...newSpecialty, name: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <input
               type="number"
-              placeholder="Preço"
+              placeholder="Preço (R$)"
               step="0.01"
               value={newSpecialty.price}
               onChange={(e) => setNewSpecialty({ ...newSpecialty, price: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <div className="flex space-x-2">
-              <button
-                onClick={handleAddSpecialty}
-                className="flex items-center px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
-              >
-                <Save className="w-4 h-4 mr-1" />
-                Salvar
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewSpecialty({ name: '', price: '' });
-                }}
-                className="flex items-center px-3 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Cancelar
-              </button>
-            </div>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleAddSpecialty}
+              className="flex items-center px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
+            >
+              <Save className="w-4 h-4 mr-1" />
+              Salvar
+            </button>
+            <button
+              onClick={() => {
+                setShowAddForm(false);
+                setNewSpecialty({ name: '', price: '' });
+              }}
+              className="flex items-center px-3 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Cancelar
+            </button>
           </div>
         </div>
       )}
 
-      <div className="space-y-3">
-        {loading ? (
-          <p className="text-slate-600 text-center py-4">Carregando especialidades...</p>
-        ) : specialties.length === 0 ? (
-          <p className="text-slate-600 text-center py-4">Nenhuma especialidade cadastrada</p>
-        ) : (
-          specialties.map((specialty) => (
-            <div key={specialty.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-blue-600" />
-                </div>
-                <span className="font-medium text-slate-800">{specialty.specialty_name}</span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                {editingId === specialty.id ? (
-                  <>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editPrice}
-                      onChange={(e) => setEditPrice(e.target.value)}
-                      className="w-20 px-2 py-1 border border-slate-300 rounded text-center"
-                    />
-                    <button
-                      onClick={() => handleUpdatePrice(specialty.id)}
-                      className="p-1 text-green-600 hover:bg-green-100 rounded"
-                    >
-                      <Save className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="p-1 text-slate-600 hover:bg-slate-100 rounded"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold text-green-600">R$ {Number(specialty.price).toFixed(2)}</span>
-                    <button
-                      onClick={() => startEdit(specialty)}
-                      className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      {loading ? (
+        <div className="text-center py-8">
+          <p className="text-slate-600">Carregando especialidades...</p>
+        </div>
+      ) : specialties.length === 0 ? (
+        <div className="text-center py-8">
+          <DollarSign className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+          <p className="text-slate-600">Nenhuma especialidade cadastrada</p>
+          <p className="text-sm text-slate-500">Clique em "Adicionar Especialidade" para começar</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Especialidade</TableHead>
+                <TableHead className="text-right">Preço</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {specialties.map((specialty) => (
+                <TableRow key={specialty.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <DollarSign className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <span>{specialty.specialty_name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {editingId === specialty.id ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editPrice}
+                        onChange={(e) => setEditPrice(e.target.value)}
+                        className="w-24 px-2 py-1 border border-slate-300 rounded text-center"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="font-semibold text-green-600">
+                        R$ {Number(specialty.price).toFixed(2)}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      {editingId === specialty.id ? (
+                        <>
+                          <button
+                            onClick={() => handleUpdatePrice(specialty.id)}
+                            className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                            title="Salvar"
+                          >
+                            <Save className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Cancelar"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => startEdit(specialty)}
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Editar preço"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 };

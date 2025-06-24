@@ -22,6 +22,16 @@ const UserMenu = () => {
     navigate('/auth');
   };
 
+  const handleSettings = () => {
+    // Por enquanto, vamos mostrar um alerta informando que está em desenvolvimento
+    alert('Página de configurações em desenvolvimento');
+  };
+
+  const handleProfile = () => {
+    // Por enquanto, vamos mostrar um alerta informando que está em desenvolvimento
+    alert('Página de perfil em desenvolvimento');
+  };
+
   if (!user || !profile) {
     return (
       <Button onClick={() => navigate('/auth')} variant="outline">
@@ -41,11 +51,11 @@ const UserMenu = () => {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleProfile}>
           <User className="w-4 h-4 mr-2" />
           <span>Perfil</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSettings}>
           <Settings className="w-4 h-4 mr-2" />
           <span>Configurações</span>
         </DropdownMenuItem>
