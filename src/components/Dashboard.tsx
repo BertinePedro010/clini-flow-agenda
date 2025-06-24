@@ -1,9 +1,12 @@
 
 import React from 'react';
 import { Calendar, Users, User, Clock } from 'lucide-react';
+import { useClinic } from '@/contexts/ClinicContext';
 import PricingManager from './PricingManager';
 
 const Dashboard = () => {
+  const { currentClinic, loading } = useClinic();
+  
   // Mock data - será substituído por dados reais do Supabase
   const stats = [
     {
@@ -79,11 +82,29 @@ const Dashboard = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Dashboard</h1>
+          <p className="text-slate-600">Carregando dados da clínica...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Dashboard</h1>
-        <p className="text-slate-600">Visão geral do sistema de agendamentos</p>
+        <p className="text-slate-600">
+          {currentClinic ? `${currentClinic.name} - Visão geral do sistema` : "Nenhuma clínica selecionada"}
+        </p>
+        {currentClinic?.domain_slug && (
+          <p className="text-sm text-blue-600 mt-1">
+            Subdomínio: {currentClinic.domain_slug}
+          </p>
+        )}
       </div>
 
       {/* Cards de Estatísticas */}

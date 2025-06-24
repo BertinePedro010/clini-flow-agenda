@@ -69,6 +69,7 @@ export type Database = {
       clinics: {
         Row: {
           created_at: string | null
+          domain_slug: string | null
           id: string
           name: string
           owner_id: string
@@ -82,6 +83,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          domain_slug?: string | null
           id?: string
           name: string
           owner_id: string
@@ -95,6 +97,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          domain_slug?: string | null
           id?: string
           name?: string
           owner_id?: string
@@ -232,6 +235,38 @@ export type Database = {
           },
         ]
       }
+      user_clinic_associations: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          user_id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          user_id: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_clinic_associations_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users_profiles: {
         Row: {
           created_at: string
@@ -275,6 +310,18 @@ export type Database = {
         Args: { clinic_name: string }
         Returns: string
       }
+      get_clinic_by_subdomain: {
+        Args: { subdomain: string }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          domain_slug: string
+          owner_id: string
+          phone: string
+          plan_type: string
+        }[]
+      }
       get_specialties_pricing: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -282,6 +329,18 @@ export type Database = {
           specialty_name: string
           price: number
           clinic_id: string
+        }[]
+      }
+      get_user_default_clinic: {
+        Args: { user_id: string }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          domain_slug: string
+          owner_id: string
+          phone: string
+          plan_type: string
         }[]
       }
       update_specialty_price: {

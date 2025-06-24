@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Edit, Save, X, Plus } from 'lucide-react';
+import { DollarSign, Plus, Edit3, Save, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useClinic } from '@/contexts/ClinicContext';
 
 interface Specialty {
   id: string;
@@ -11,301 +13,255 @@ interface Specialty {
 }
 
 const PricingManager = () => {
-  const [especialidades, setEspecialidades] = useState<Specialty[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingPrice, setEditingPrice] = useState<number>(0);
-  const [newSpecialty, setNewSpecialty] = useState({ name: '', price: 0 });
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState<string>('');
+  const [newSpecialty, setNewSpecialty] = useState({ name: '', price: '' });
+  const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
+  const { currentClinic } = useClinic();
 
   useEffect(() => {
-    fetchEspecialidades();
-  }, []);
+    if (currentClinic) {
+      fetchSpecialties();
+    }
+  }, [currentClinic]);
 
-  const fetchEspecialidades = async () => {
+  const fetchSpecialties = async () => {
+    if (!currentClinic) return;
+    
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('specialties')
         .select('*')
+        .eq('clinic_id', currentClinic.id)
         .order('specialty_name');
 
       if (error) {
         console.error('Error fetching specialties:', error);
         toast({
           title: "Erro",
-          description: "Não foi possível carregar as especialidades.",
+          description: "Erro ao carregar especialidades",
           variant: "destructive",
         });
       } else {
-        setEspecialidades(data || []);
+        setSpecialties(data || []);
       }
     } catch (error) {
-      console.error('Error in fetchEspecialidades:', error);
+      console.error('Error in fetchSpecialties:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditPrice = (id: string, currentPrice: number) => {
-    setEditingId(id);
-    setEditingPrice(currentPrice);
-  };
-
-  const handleSavePrice = async (id: string) => {
+  const handleUpdatePrice = async (specialtyId: string) => {
     try {
-      const { error } = await supabase
-        .from('specialties')
-        .update({ 
-          price: editingPrice,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error updating price:', error);
+      const newPrice = parseFloat(editPrice);
+      if (isNaN(newPrice) || newPrice < 0) {
         toast({
           title: "Erro",
-          description: "Não foi possível atualizar o preço.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sucesso",
-          description: "Preço atualizado com sucesso!",
-        });
-        setEditingId(null);
-        fetchEspecialidades();
-      }
-    } catch (error) {
-      console.error('Error in handleSavePrice:', error);
-    }
-  };
-
-  const handleAddSpecialty = async () => {
-    if (!newSpecialty.name.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome da especialidade é obrigatório.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Get the first clinic ID or create a default one
-      let { data: clinics, error: clinicsError } = await supabase
-        .from('clinics')
-        .select('id')
-        .limit(1);
-
-      if (clinicsError) {
-        console.error('Error fetching clinics:', clinicsError);
-        toast({
-          title: "Erro",
-          description: "Erro ao buscar clínicas.",
+          description: "Por favor, insira um preço válido",
           variant: "destructive",
         });
         return;
       }
 
-      // If no clinics exist, create a default one
-      if (!clinics || clinics.length === 0) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) {
-          toast({
-            title: "Erro",
-            description: "Usuário não autenticado.",
-            variant: "destructive",
-          });
-          return;
-        }
+      const { error } = await supabase
+        .rpc('update_specialty_price', {
+          specialty_id: specialtyId,
+          new_price: newPrice
+        });
 
-        const { data: newClinic, error: createError } = await supabase
-          .from('clinics')
-          .insert({
-            name: 'Clínica Principal',
-            slug: 'clinica-principal',
-            owner_id: userData.user.id,
-            phone: '(11) 99999-9999'
-          })
-          .select()
-          .single();
+      if (error) {
+        console.error('Error updating specialty price:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar preço",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Preço atualizado com sucesso",
+        });
+        setEditingId(null);
+        setEditPrice('');
+        fetchSpecialties();
+      }
+    } catch (error) {
+      console.error('Error in handleUpdatePrice:', error);
+    }
+  };
 
-        if (createError) {
-          console.error('Error creating clinic:', createError);
-          toast({
-            title: "Erro",
-            description: "Erro ao criar clínica padrão.",
-            variant: "destructive",
-          });
-          return;
-        }
-        clinics = [newClinic];
+  const handleAddSpecialty = async () => {
+    if (!currentClinic) return;
+    
+    try {
+      const price = parseFloat(newSpecialty.price);
+      if (!newSpecialty.name.trim() || isNaN(price) || price < 0) {
+        toast({
+          title: "Erro",
+          description: "Por favor, preencha todos os campos corretamente",
+          variant: "destructive",
+        });
+        return;
       }
 
       const { error } = await supabase
-        .from('specialties')
-        .insert({
-          clinic_id: clinics[0].id,
-          specialty_name: newSpecialty.name,
-          price: newSpecialty.price
+        .rpc('add_specialty', {
+          clinic_id: currentClinic.id,
+          specialty_name: newSpecialty.name.trim(),
+          price: price
         });
 
       if (error) {
         console.error('Error adding specialty:', error);
         toast({
           title: "Erro",
-          description: "Não foi possível adicionar a especialidade.",
+          description: "Erro ao adicionar especialidade",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Sucesso",
-          description: "Especialidade adicionada com sucesso!",
+          description: "Especialidade adicionada com sucesso",
         });
-        setNewSpecialty({ name: '', price: 0 });
+        setNewSpecialty({ name: '', price: '' });
         setShowAddForm(false);
-        fetchEspecialidades();
+        fetchSpecialties();
       }
     } catch (error) {
       console.error('Error in handleAddSpecialty:', error);
     }
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditingPrice(0);
+  const startEdit = (specialty: Specialty) => {
+    setEditingId(specialty.id);
+    setEditPrice(specialty.price.toString());
   };
 
-  if (loading) {
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditPrice('');
+  };
+
+  if (!currentClinic) {
     return (
       <div className="medical-card p-6">
-        <div className="animate-pulse">
-          <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-slate-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+        <h2 className="text-xl font-semibold text-slate-800 mb-4">Tabela de Preços</h2>
+        <p className="text-slate-600">Carregando dados da clínica...</p>
       </div>
     );
   }
 
   return (
     <div className="medical-card p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-            <DollarSign className="w-6 h-6 text-green-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800">
-            Tabela de Preços
-          </h2>
-        </div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-slate-800">Tabela de Preços</h2>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          onClick={() => setShowAddForm(true)}
+          className="flex items-center medical-button text-sm"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Especialidade
+          <Plus className="w-4 h-4 mr-1" />
+          Adicionar
         </button>
       </div>
 
       {showAddForm && (
-        <div className="mb-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
-          <h3 className="text-lg font-medium text-slate-800 mb-4">Adicionar Nova Especialidade</h3>
-          <div className="flex space-x-4">
+        <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="space-y-3">
             <input
               type="text"
               placeholder="Nome da especialidade"
               value={newSpecialty.name}
               onChange={(e) => setNewSpecialty({ ...newSpecialty, name: e.target.value })}
-              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <input
               type="number"
               placeholder="Preço"
               step="0.01"
-              min="0"
               value={newSpecialty.price}
-              onChange={(e) => setNewSpecialty({ ...newSpecialty, price: parseFloat(e.target.value) || 0 })}
-              className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              onChange={(e) => setNewSpecialty({ ...newSpecialty, price: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <button
-              onClick={handleAddSpecialty}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-            >
-              Adicionar
-            </button>
-            <button
-              onClick={() => {
-                setShowAddForm(false);
-                setNewSpecialty({ name: '', price: 0 });
-              }}
-              className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors"
-            >
-              Cancelar
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleAddSpecialty}
+                className="flex items-center px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
+              >
+                <Save className="w-4 h-4 mr-1" />
+                Salvar
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewSpecialty({ name: '', price: '' });
+                }}
+                className="flex items-center px-3 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       <div className="space-y-3">
-        {especialidades.map((especialidade) => (
-          <div key={especialidade.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-            <div>
-              <h3 className="font-medium text-slate-800">{especialidade.specialty_name}</h3>
+        {loading ? (
+          <p className="text-slate-600 text-center py-4">Carregando especialidades...</p>
+        ) : specialties.length === 0 ? (
+          <p className="text-slate-600 text-center py-4">Nenhuma especialidade cadastrada</p>
+        ) : (
+          specialties.map((specialty) => (
+            <div key={specialty.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-blue-600" />
+                </div>
+                <span className="font-medium text-slate-800">{specialty.specialty_name}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {editingId === specialty.id ? (
+                  <>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      className="w-20 px-2 py-1 border border-slate-300 rounded text-center"
+                    />
+                    <button
+                      onClick={() => handleUpdatePrice(specialty.id)}
+                      className="p-1 text-green-600 hover:bg-green-100 rounded"
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-green-600">R$ {Number(specialty.price).toFixed(2)}</span>
+                    <button
+                      onClick={() => startEdit(specialty)}
+                      className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex items-center space-x-3">
-              {editingId === especialidade.id ? (
-                <>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={editingPrice}
-                    onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
-                    className="w-24 px-3 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button
-                    onClick={() => handleSavePrice(especialidade.id)}
-                    className="p-1 text-green-600 hover:text-green-700"
-                  >
-                    <Save className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="p-1 text-red-600 hover:text-red-700"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="font-semibold text-green-600">
-                    R$ {Number(especialidade.price).toFixed(2)}
-                  </span>
-                  <button
-                    onClick={() => handleEditPrice(especialidade.id, Number(especialidade.price))}
-                    className="p-1 text-blue-600 hover:text-blue-700"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {especialidades.length === 0 && (
-          <div className="text-center py-8 text-slate-500">
-            <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-            <p>Nenhuma especialidade cadastrada.</p>
-            <p className="text-sm">Clique em "Nova Especialidade" para começar.</p>
-          </div>
+          ))
         )}
       </div>
     </div>

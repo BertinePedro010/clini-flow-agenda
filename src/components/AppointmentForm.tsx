@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar, Save, X, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useClinic } from '@/contexts/ClinicContext';
 
 interface AppointmentFormProps {
   onSubmit: (data: any) => void;
@@ -9,6 +11,7 @@ interface AppointmentFormProps {
 }
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, initialData }) => {
+  const { currentClinic } = useClinic();
   const [formData, setFormData] = useState({
     pacienteId: initialData?.pacienteId || '',
     medicoId: initialData?.medicoId || '',
@@ -37,15 +40,20 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
   ];
 
   useEffect(() => {
-    fetchEspecialidades();
-  }, []);
+    if (currentClinic) {
+      fetchEspecialidades();
+    }
+  }, [currentClinic]);
 
   const fetchEspecialidades = async () => {
+    if (!currentClinic) return;
+    
     try {
       setLoadingEspecialidades(true);
       const { data, error } = await supabase
         .from('specialties')
         .select('*')
+        .eq('clinic_id', currentClinic.id)
         .order('specialty_name');
 
       if (error) {
@@ -82,6 +90,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
       });
     }
   };
+
+  if (!currentClinic) {
+    return (
+      <div className="medical-card p-6 max-w-2xl mx-auto">
+        <p className="text-slate-600 text-center">Carregando dados da clínica...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="medical-card p-6 max-w-2xl mx-auto">
@@ -137,7 +153,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-sleeve-700 mb-2">
               Especialidade/Exame *
             </label>
             <select
