@@ -40,6 +40,49 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentClinicState(clinic);
   };
 
+  const setFirstClinicAsDefault = async (userId: string) => {
+    try {
+      console.log('Setting first clinic as default for user:', userId);
+      
+      // Buscar primeira clínica disponível
+      const { data: clinics, error: clinicsError } = await supabase
+        .from('clinics')
+        .select('*')
+        .limit(1);
+
+      if (clinicsError) {
+        console.error('Error fetching clinics:', clinicsError);
+        return;
+      }
+
+      if (clinics && clinics.length > 0) {
+        const firstClinic = clinics[0];
+        
+        // Criar associação padrão
+        const { error: associationError } = await supabase
+          .from('user_clinic_associations')
+          .upsert({
+            user_id: userId,
+            clinic_id: firstClinic.id,
+            is_default: true
+          });
+
+        if (associationError) {
+          console.error('Error creating clinic association:', associationError);
+        } else {
+          console.log('Successfully set first clinic as default');
+          setCurrentClinicState(firstClinic);
+          toast({
+            title: "Clínica definida",
+            description: `${firstClinic.name} foi definida como sua clínica padrão`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in setFirstClinicAsDefault:', error);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       setCurrentClinicState(null);
@@ -76,20 +119,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         if (defaultError) {
           console.error('Error loading default clinic:', defaultError);
-          toast({
-            title: "Erro ao carregar clínica",
-            description: "Erro ao carregar dados da clínica padrão",
-            variant: "destructive",
-          });
         } else if (defaultClinicData && defaultClinicData.length > 0) {
           setCurrentClinicState(defaultClinicData[0]);
         } else {
-          console.log('No default clinic found for user');
-          toast({
-            title: "Nenhuma clínica encontrada",
-            description: "Nenhuma clínica padrão foi encontrada para este usuário",
-            variant: "destructive",
-          });
+          console.log('No default clinic found, trying to set first available clinic');
+          // Se não tem clínica padrão, tentar definir a primeira clínica disponível
+          await setFirstClinicAsDefault(user.id);
         }
       } catch (error) {
         console.error('Error in loadClinic:', error);
