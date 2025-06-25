@@ -7,12 +7,19 @@ import AppointmentCalendar from '../components/AppointmentCalendar';
 const Appointments = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleSubmit = (formData: any) => {
     console.log('Agendamento salvo:', formData);
-    // Aqui será implementada a integração com Supabase
     setShowForm(false);
     setEditingAppointment(null);
+    // Trigger refresh of calendar
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleEdit = (appointment: any) => {
+    setEditingAppointment(appointment);
+    setShowForm(true);
   };
 
   if (showForm) {
@@ -50,7 +57,10 @@ const Appointments = () => {
         </button>
       </div>
 
-      <AppointmentCalendar />
+      <AppointmentCalendar 
+        onEdit={handleEdit}
+        refreshTrigger={refreshTrigger}
+      />
     </div>
   );
 };

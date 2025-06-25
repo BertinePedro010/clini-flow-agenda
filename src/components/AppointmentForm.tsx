@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Save, X, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface AppointmentFormProps {
   onSubmit: (data: any) => void;
@@ -12,19 +13,21 @@ interface AppointmentFormProps {
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, initialData }) => {
   const { currentClinic } = useClinic();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    pacienteId: initialData?.pacienteId || '',
-    medicoId: initialData?.medicoId || '',
-    data: initialData?.data || '',
-    hora: initialData?.hora || '',
-    observacoes: initialData?.observacoes || '',
+    patient_name: initialData?.patient_name || '',
+    doctor_name: initialData?.doctor_name || '',
+    appointment_date: initialData?.appointment_date || '',
+    appointment_time: initialData?.appointment_time || '',
+    notes: initialData?.notes || '',
     status: initialData?.status || 'confirmado',
-    especialidade: initialData?.especialidade || '',
-    preco: initialData?.preco || 0,
+    specialty: initialData?.specialty || '',
+    price: initialData?.price || 0,
   });
 
   const [especialidades, setEspecialidades] = useState<any[]>([]);
   const [loadingEspecialidades, setLoadingEspecialidades] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Mock data - será substituído por dados reais do Supabase
   const pacientes = [
@@ -68,20 +71,85 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    if (!currentClinic) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma clínica selecionada",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const appointmentData = {
+        clinic_id: currentClinic.id,
+        patient_name: formData.patient_name,
+        doctor_name: formData.doctor_name,
+        specialty: formData.specialty,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        price: parseFloat(formData.price.toString()),
+        status: formData.status,
+        notes: formData.notes || null,
+      };
+
+      let result;
+      if (initialData?.id) {
+        // Update existing appointment
+        result = await supabase
+          .from('appointments_schedule')
+          .update({
+            ...appointmentData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', initialData.id);
+      } else {
+        // Create new appointment
+        result = await supabase
+          .from('appointments_schedule')
+          .insert([appointmentData]);
+      }
+
+      if (result.error) {
+        console.error('Error saving appointment:', result.error);
+        toast({
+          title: "Erro",
+          description: "Erro ao salvar agendamento",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: initialData?.id ? "Agendamento atualizado com sucesso" : "Agendamento criado com sucesso",
+        });
+        onSubmit(appointmentData);
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao salvar agendamento",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    if (name === 'especialidade') {
+    if (name === 'specialty') {
       const selectedEspecialidade = especialidades.find(esp => esp.specialty_name === value);
       setFormData({
         ...formData,
         [name]: value,
-        preco: selectedEspecialidade ? selectedEspecialidade.price : 0,
+        price: selectedEspecialidade ? selectedEspecialidade.price : 0,
       });
     } else {
       setFormData({
@@ -116,40 +184,30 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Paciente *
             </label>
-            <select
-              name="pacienteId"
-              value={formData.pacienteId}
+            <input
+              type="text"
+              name="patient_name"
+              value={formData.patient_name}
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            >
-              <option value="">Selecione o paciente</option>
-              {pacientes.map((paciente) => (
-                <option key={paciente.id} value={paciente.id}>
-                  {paciente.nome}
-                </option>
-              ))}
-            </select>
+              placeholder="Nome do paciente"
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Médico *
             </label>
-            <select
-              name="medicoId"
-              value={formData.medicoId}
+            <input
+              type="text"
+              name="doctor_name"
+              value={formData.doctor_name}
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            >
-              <option value="">Selecione o médico</option>
-              {medicos.map((medico) => (
-                <option key={medico.id} value={medico.id}>
-                  {medico.nome} - {medico.especialidade}
-                </option>
-              ))}
-            </select>
+              placeholder="Nome do médico"
+            />
           </div>
 
           <div>
@@ -157,8 +215,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
               Exame/Especialidade *
             </label>
             <select
-              name="especialidade"
-              value={formData.especialidade}
+              name="specialty"
+              value={formData.specialty}
               onChange={handleChange}
               required
               disabled={loadingEspecialidades}
@@ -183,8 +241,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 type="number"
-                name="preco"
-                value={formData.preco}
+                name="price"
+                value={formData.price}
                 onChange={handleChange}
                 step="0.01"
                 min="0"
@@ -200,8 +258,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
             </label>
             <input
               type="date"
-              name="data"
-              value={formData.data}
+              name="appointment_date"
+              value={formData.appointment_date}
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -214,8 +272,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
             </label>
             <input
               type="time"
-              name="hora"
-              value={formData.hora}
+              name="appointment_time"
+              value={formData.appointment_time}
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -243,8 +301,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
               Observações
             </label>
             <textarea
-              name="observacoes"
-              value={formData.observacoes}
+              name="notes"
+              value={formData.notes}
               onChange={handleChange}
               rows={4}
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -257,17 +315,19 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
           <button
             type="button"
             onClick={onCancel}
-            className="flex items-center px-6 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            disabled={saving}
+            className="flex items-center px-6 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
           >
             <X className="w-4 h-4 mr-2" />
             Cancelar
           </button>
           <button
             type="submit"
-            className="flex items-center medical-button"
+            disabled={saving}
+            className="flex items-center medical-button disabled:opacity-50"
           >
             <Save className="w-4 h-4 mr-2" />
-            Salvar Agendamento
+            {saving ? 'Salvando...' : 'Salvar Agendamento'}
           </button>
         </div>
       </form>

@@ -1,38 +1,131 @@
 
-import React, { useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Users, User, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Users, User, Clock, Edit3, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useClinic } from '@/contexts/ClinicContext';
+import { useToast } from '@/hooks/use-toast';
 
-const AppointmentCalendar = () => {
+interface Appointment {
+  id: string;
+  patient_name: string;
+  doctor_name: string;
+  specialty: string;
+  appointment_date: string;
+  appointment_time: string;
+  price: number;
+  status: string;
+  notes?: string;
+}
+
+interface AppointmentCalendarProps {
+  onEdit: (appointment: Appointment) => void;
+  refreshTrigger: number;
+}
+
+const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({ onEdit, refreshTrigger }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [dayAppointments, setDayAppointments] = useState<Appointment[]>([]);
+  const { currentClinic } = useClinic();
+  const { toast } = useToast();
 
-  // Mock data - será substituído por dados reais do Supabase
-  const appointments = [
-    {
-      id: 1,
-      date: '2024-06-20',
-      time: '09:00',
-      patient: 'Maria Silva',
-      doctor: 'Dr. João Santos',
-      status: 'confirmado',
-    },
-    {
-      id: 2,
-      date: '2024-06-20',
-      time: '10:30',
-      patient: 'Carlos Oliveira',
-      doctor: 'Dra. Ana Costa',
-      status: 'confirmado',
-    },
-    {
-      id: 3,
-      date: '2024-06-21',
-      time: '14:00',
-      patient: 'Fernanda Lima',
-      doctor: 'Dr. Pedro Alves',
-      status: 'concluído',
-    },
-  ];
+  useEffect(() => {
+    if (currentClinic) {
+      fetchAppointments();
+    }
+  }, [currentClinic, refreshTrigger]);
+
+  const fetchAppointments = async () => {
+    if (!currentClinic) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('appointments_schedule')
+        .select('*')
+        .eq('clinic_id', currentClinic.id)
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar agendamentos",
+          variant: "destructive",
+        });
+      } else {
+        setAppointments(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchAppointments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este agendamento?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('appointments_schedule')
+        .delete()
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error deleting appointment:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir agendamento",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Agendamento excluído com sucesso",
+        });
+        fetchAppointments();
+        if (selectedDate) {
+          fetchDayAppointments(selectedDate);
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleDeleteAppointment:', error);
+    }
+  };
+
+  const fetchDayAppointments = async (dateStr: string) => {
+    if (!currentClinic) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('appointments_schedule')
+        .select('*')
+        .eq('clinic_id', currentClinic.id)
+        .eq('appointment_date', dateStr)
+        .order('appointment_time', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching day appointments:', error);
+      } else {
+        setDayAppointments(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchDayAppointments:', error);
+    }
+  };
+
+  const handleDayClick = (day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setSelectedDate(dateStr);
+    fetchDayAppointments(dateStr);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -64,12 +157,10 @@ const AppointmentCalendar = () => {
 
     const days = [];
     
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
     
-    // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(day);
     }
@@ -87,15 +178,24 @@ const AppointmentCalendar = () => {
       }
       return newDate;
     });
+    setSelectedDate(null);
   };
 
   const getAppointmentsForDate = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return appointments.filter(apt => apt.date === dateStr);
+    return appointments.filter(apt => apt.appointment_date === dateStr);
   };
 
   const days = getDaysInMonth(currentDate);
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-slate-600">Carregando agendamentos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -135,95 +235,133 @@ const AppointmentCalendar = () => {
         </div>
       </div>
 
-      {/* Calendar Header */}
-      <div className="medical-card p-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => navigateMonth('prev')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-slate-600" />
-          </button>
-          
-          <h2 className="text-xl font-semibold text-slate-800">
-            {formatDate(currentDate)}
-          </h2>
-          
-          <button
-            onClick={() => navigateMonth('next')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-slate-600" />
-          </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendar */}
+        <div className="lg:col-span-2">
+          <div className="medical-card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <button
+                onClick={() => navigateMonth('prev')}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-600" />
+              </button>
+              
+              <h2 className="text-xl font-semibold text-slate-800">
+                {formatDate(currentDate)}
+              </h2>
+              
+              <button
+                onClick={() => navigateMonth('next')}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map(day => (
+                <div key={day} className="p-3 text-center font-medium text-slate-600 bg-slate-50 rounded-lg">
+                  {day}
+                </div>
+              ))}
+              
+              {days.map((day, index) => (
+                <div
+                  key={index}
+                  className={`min-h-[120px] p-2 border border-slate-200 rounded-lg ${
+                    day ? 'bg-white hover:bg-slate-50 cursor-pointer' : 'bg-slate-50'
+                  }`}
+                  onClick={() => day && handleDayClick(day)}
+                >
+                  {day && (
+                    <>
+                      <div className="font-medium text-slate-800 mb-2">{day}</div>
+                      <div className="space-y-1">
+                        {getAppointmentsForDate(day).slice(0, 2).map(appointment => (
+                          <div
+                            key={appointment.id}
+                            className={`p-2 rounded text-xs ${getStatusColor(appointment.status)}`}
+                          >
+                            <div className="font-medium">{appointment.appointment_time}</div>
+                            <div className="truncate">{appointment.patient_name}</div>
+                          </div>
+                        ))}
+                        {getAppointmentsForDate(day).length > 2 && (
+                          <div className="text-xs text-slate-500 p-1">
+                            +{getAppointmentsForDate(day).length - 2} mais
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {/* Week days header */}
-          {weekDays.map(day => (
-            <div key={day} className="p-3 text-center font-medium text-slate-600 bg-slate-50 rounded-lg">
-              {day}
-            </div>
-          ))}
+        {/* Day appointments */}
+        <div className="medical-card p-6">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4">
+            {selectedDate ? `Agendamentos de ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR')}` : 'Selecione um dia'}
+          </h3>
           
-          {/* Calendar days */}
-          {days.map((day, index) => (
-            <div
-              key={index}
-              className={`min-h-[120px] p-2 border border-slate-200 rounded-lg ${
-                day ? 'bg-white hover:bg-slate-50 cursor-pointer' : 'bg-slate-50'
-              }`}
-            >
-              {day && (
-                <>
-                  <div className="font-medium text-slate-800 mb-2">{day}</div>
-                  <div className="space-y-1">
-                    {getAppointmentsForDate(day).map(appointment => (
-                      <div
-                        key={appointment.id}
-                        className={`p-2 rounded text-xs ${getStatusColor(appointment.status)}`}
-                      >
-                        <div className="font-medium">{appointment.time}</div>
-                        <div className="truncate">{appointment.patient}</div>
+          {selectedDate ? (
+            <div className="space-y-3">
+              {dayAppointments.length === 0 ? (
+                <p className="text-slate-500 text-sm">Nenhum agendamento para este dia</p>
+              ) : (
+                dayAppointments.map(appointment => (
+                  <div key={appointment.id} className={`p-4 rounded-lg ${getStatusColor(appointment.status)}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-3">
+                        <Clock className="w-4 h-4" />
+                        <span className="font-medium">{appointment.appointment_time}</span>
                       </div>
-                    ))}
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => onEdit(appointment)}
+                          className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                          title="Editar"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAppointment(appointment.id)}
+                          className="p-1 text-red-600 hover:bg-red-100 rounded"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center space-x-1">
+                        <Users className="w-4 h-4" />
+                        <span>{appointment.patient_name}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <User className="w-4 h-4" />
+                        <span>{appointment.doctor_name}</span>
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        {appointment.specialty} - R$ {Number(appointment.price).toFixed(2)}
+                      </div>
+                      {appointment.notes && (
+                        <div className="text-xs text-slate-600 mt-2">
+                          <strong>Obs:</strong> {appointment.notes}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </>
+                ))
               )}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Today's Appointments */}
-      <div className="medical-card p-6">
-        <h3 className="text-lg font-semibold text-slate-800 mb-4">Agendamentos de Hoje</h3>
-        <div className="space-y-3">
-          {appointments
-            .filter(apt => apt.date === '2024-06-20')
-            .map(appointment => (
-              <div key={appointment.id} className={`p-4 rounded-lg ${getStatusColor(appointment.status)}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Clock className="w-4 h-4" />
-                    <span className="font-medium">{appointment.time}</span>
-                  </div>
-                  <span className="text-xs font-medium uppercase">
-                    {appointment.status}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center space-x-4 text-sm">
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-4 h-4" />
-                    <span>{appointment.patient}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <User className="w-4 h-4" />
-                    <span>{appointment.doctor}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          ) : (
+            <p className="text-slate-500 text-sm">Clique em um dia do calendário para ver os agendamentos</p>
+          )}
         </div>
       </div>
     </div>
