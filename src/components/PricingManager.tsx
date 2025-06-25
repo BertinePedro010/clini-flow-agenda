@@ -77,10 +77,12 @@ const PricingManager = () => {
       }
 
       const { error } = await supabase
-        .rpc('update_specialty_price', {
-          specialty_id: specialtyId,
-          new_price: newPrice
-        });
+        .from('specialties')
+        .update({ 
+          price: newPrice,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', specialtyId);
 
       if (error) {
         console.error('Error updating specialty price:', error);
@@ -118,7 +120,8 @@ const PricingManager = () => {
       }
 
       const { error } = await supabase
-        .rpc('add_specialty', {
+        .from('specialties')
+        .insert({
           clinic_id: currentClinic.id,
           specialty_name: newSpecialty.name.trim(),
           price: price
