@@ -153,8 +153,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-sleeve-700 mb-2">
-              Especialidade/Exame *
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Exame/Especialidade *
             </label>
             <select
               name="especialidade"
@@ -165,7 +165,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             >
               <option value="">
-                {loadingEspecialidades ? 'Carregando...' : 'Selecione a especialidade'}
+                {loadingEspecialidades ? 'Carregando...' : 'Selecione o exame/especialidade'}
               </option>
               {especialidades.map((especialidade) => (
                 <option key={especialidade.id} value={especialidade.specialty_name}>

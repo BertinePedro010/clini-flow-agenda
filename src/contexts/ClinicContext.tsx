@@ -77,6 +77,13 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             description: `${firstClinic.name} foi definida como sua clínica padrão`,
           });
         }
+      } else {
+        console.log('No clinics found in database');
+        toast({
+          title: "Nenhuma clínica encontrada",
+          description: "Não há clínicas cadastradas no sistema",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error in setFirstClinicAsDefault:', error);
@@ -119,6 +126,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         if (defaultError) {
           console.error('Error loading default clinic:', defaultError);
+          // Se houver erro, tentar definir primeira clínica como padrão
+          await setFirstClinicAsDefault(user.id);
         } else if (defaultClinicData && defaultClinicData.length > 0) {
           setCurrentClinicState(defaultClinicData[0]);
         } else {

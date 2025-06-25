@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Plus, Edit3, Save, X } from 'lucide-react';
+import { DollarSign, Plus, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useClinic } from '@/contexts/ClinicContext';
@@ -128,13 +128,13 @@ const PricingManager = () => {
         console.error('Error adding specialty:', error);
         toast({
           title: "Erro",
-          description: "Erro ao adicionar especialidade",
+          description: "Erro ao adicionar especialidade/exame",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Sucesso",
-          description: "Especialidade adicionada com sucesso",
+          description: "Especialidade/exame adicionado com sucesso",
         });
         setNewSpecialty({ name: '', price: '' });
         setShowAddForm(false);
@@ -142,6 +142,36 @@ const PricingManager = () => {
       }
     } catch (error) {
       console.error('Error in handleAddSpecialty:', error);
+    }
+  };
+
+  const handleDeleteSpecialty = async (specialtyId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta especialidade/exame?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('specialties')
+        .delete()
+        .eq('id', specialtyId);
+
+      if (error) {
+        console.error('Error deleting specialty:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir especialidade/exame",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Especialidade/exame excluído com sucesso",
+        });
+        fetchSpecialties();
+      }
+    } catch (error) {
+      console.error('Error in handleDeleteSpecialty:', error);
     }
   };
 
@@ -167,22 +197,23 @@ const PricingManager = () => {
   return (
     <div className="medical-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-slate-800">Tabela de Preços</h2>
+        <h2 className="text-xl font-semibold text-slate-800">Tabela de Preços - Exames e Especialidades</h2>
         <button
           onClick={() => setShowAddForm(true)}
           className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
         >
           <Plus className="w-4 h-4 mr-1" />
-          Adicionar Especialidade
+          Adicionar Exame/Especialidade
         </button>
       </div>
 
       {showAddForm && (
         <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <h3 className="text-lg font-medium text-slate-800 mb-3">Novo Exame/Especialidade</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <input
               type="text"
-              placeholder="Nome da especialidade"
+              placeholder="Nome do exame/especialidade"
               value={newSpecialty.name}
               onChange={(e) => setNewSpecialty({ ...newSpecialty, name: e.target.value })}
               className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -220,20 +251,20 @@ const PricingManager = () => {
 
       {loading ? (
         <div className="text-center py-8">
-          <p className="text-slate-600">Carregando especialidades...</p>
+          <p className="text-slate-600">Carregando exames e especialidades...</p>
         </div>
       ) : specialties.length === 0 ? (
         <div className="text-center py-8">
           <DollarSign className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-          <p className="text-slate-600">Nenhuma especialidade cadastrada</p>
-          <p className="text-sm text-slate-500">Clique em "Adicionar Especialidade" para começar</p>
+          <p className="text-slate-600">Nenhum exame/especialidade cadastrado</p>
+          <p className="text-sm text-slate-500">Clique em "Adicionar Exame/Especialidade" para começar</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Especialidade</TableHead>
+                <TableHead>Exame/Especialidade</TableHead>
                 <TableHead className="text-right">Preço</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -285,13 +316,22 @@ const PricingManager = () => {
                           </button>
                         </>
                       ) : (
-                        <button
-                          onClick={() => startEdit(specialty)}
-                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                          title="Editar preço"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => startEdit(specialty)}
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="Editar preço"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSpecialty(specialty.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </TableCell>
