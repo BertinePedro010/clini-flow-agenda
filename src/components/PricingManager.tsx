@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, Edit3, Save, X, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +40,8 @@ const PricingManager = () => {
     
     try {
       setLoading(true);
+      console.log('Fetching specialties for clinic:', currentClinic.id);
+      
       const { data, error } = await supabase
         .from('specialties')
         .select('*')
@@ -55,12 +56,77 @@ const PricingManager = () => {
           variant: "destructive",
         });
       } else {
+        console.log('Specialties fetched:', data);
         setSpecialties(data || []);
       }
     } catch (error) {
       console.error('Error in fetchSpecialties:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddSpecialty = async () => {
+    if (!currentClinic) {
+      console.error('No current clinic available');
+      toast({
+        title: "Erro",
+        description: "Nenhuma clínica selecionada",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const price = parseFloat(newSpecialty.price);
+      if (!newSpecialty.name.trim() || isNaN(price) || price < 0) {
+        toast({
+          title: "Erro",
+          description: "Por favor, preencha todos os campos corretamente",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Adding specialty:', {
+        clinic_id: currentClinic.id,
+        specialty_name: newSpecialty.name.trim(),
+        price: price
+      });
+
+      const { data, error } = await supabase
+        .from('specialties')
+        .insert({
+          clinic_id: currentClinic.id,
+          specialty_name: newSpecialty.name.trim(),
+          price: price
+        })
+        .select();
+
+      if (error) {
+        console.error('Error adding specialty:', error);
+        toast({
+          title: "Erro",
+          description: `Erro ao adicionar especialidade/exame: ${error.message}`,
+          variant: "destructive",
+        });
+      } else {
+        console.log('Specialty added successfully:', data);
+        toast({
+          title: "Sucesso",
+          description: "Especialidade/exame adicionado com sucesso",
+        });
+        setNewSpecialty({ name: '', price: '' });
+        setShowAddForm(false);
+        fetchSpecialties();
+      }
+    } catch (error) {
+      console.error('Error in handleAddSpecialty:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao adicionar especialidade/exame",
+        variant: "destructive",
+      });
     }
   };
 
@@ -102,49 +168,6 @@ const PricingManager = () => {
       }
     } catch (error) {
       console.error('Error in handleUpdatePrice:', error);
-    }
-  };
-
-  const handleAddSpecialty = async () => {
-    if (!currentClinic) return;
-    
-    try {
-      const price = parseFloat(newSpecialty.price);
-      if (!newSpecialty.name.trim() || isNaN(price) || price < 0) {
-        toast({
-          title: "Erro",
-          description: "Por favor, preencha todos os campos corretamente",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('specialties')
-        .insert({
-          clinic_id: currentClinic.id,
-          specialty_name: newSpecialty.name.trim(),
-          price: price
-        });
-
-      if (error) {
-        console.error('Error adding specialty:', error);
-        toast({
-          title: "Erro",
-          description: "Erro ao adicionar especialidade/exame",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sucesso",
-          description: "Especialidade/exame adicionado com sucesso",
-        });
-        setNewSpecialty({ name: '', price: '' });
-        setShowAddForm(false);
-        fetchSpecialties();
-      }
-    } catch (error) {
-      console.error('Error in handleAddSpecialty:', error);
     }
   };
 
