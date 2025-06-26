@@ -26,25 +26,18 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
   });
 
   const [especialidades, setEspecialidades] = useState<any[]>([]);
+  const [pacientes, setPacientes] = useState<any[]>([]);
+  const [medicos, setMedicos] = useState<any[]>([]);
   const [loadingEspecialidades, setLoadingEspecialidades] = useState(true);
+  const [loadingPacientes, setLoadingPacientes] = useState(true);
+  const [loadingMedicos, setLoadingMedicos] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Mock data - será substituído por dados reais do Supabase
-  const pacientes = [
-    { id: 1, nome: 'Maria Silva' },
-    { id: 2, nome: 'Carlos Oliveira' },
-    { id: 3, nome: 'Fernanda Lima' },
-  ];
-
-  const medicos = [
-    { id: 1, nome: 'Dr. João Santos', especialidade: 'Cardiologia' },
-    { id: 2, nome: 'Dra. Ana Costa', especialidade: 'Dermatologia' },
-    { id: 3, nome: 'Dr. Pedro Alves', especialidade: 'Ortopedia' },
-  ];
 
   useEffect(() => {
     if (currentClinic) {
       fetchEspecialidades();
+      fetchPacientes();
+      fetchMedicos();
     }
   }, [currentClinic]);
 
@@ -68,6 +61,52 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
       console.error('Error in fetchEspecialidades:', error);
     } finally {
       setLoadingEspecialidades(false);
+    }
+  };
+
+  const fetchPacientes = async () => {
+    if (!currentClinic) return;
+    
+    try {
+      setLoadingPacientes(true);
+      const { data, error } = await supabase
+        .from('clinic_patients')
+        .select('*')
+        .eq('clinic_id', currentClinic.id)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching patients:', error);
+      } else {
+        setPacientes(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchPacientes:', error);
+    } finally {
+      setLoadingPacientes(false);
+    }
+  };
+
+  const fetchMedicos = async () => {
+    if (!currentClinic) return;
+    
+    try {
+      setLoadingMedicos(true);
+      const { data, error } = await supabase
+        .from('clinic_doctors')
+        .select('*')
+        .eq('clinic_id', currentClinic.id)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching doctors:', error);
+      } else {
+        setMedicos(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchMedicos:', error);
+    } finally {
+      setLoadingMedicos(false);
     }
   };
 
@@ -184,30 +223,56 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({ onSubmit, onCancel, i
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Paciente *
             </label>
-            <input
-              type="text"
+            <select
               name="patient_name"
               value={formData.patient_name}
               onChange={handleChange}
               required
+              disabled={loadingPacientes}
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="Nome do paciente"
-            />
+            >
+              <option value="">
+                {loadingPacientes ? 'Carregando pacientes...' : 'Selecione um paciente'}
+              </option>
+              {pacientes.map((paciente) => (
+                <option key={paciente.id} value={paciente.name}>
+                  {paciente.name}
+                </option>
+              ))}
+            </select>
+            {pacientes.length === 0 && !loadingPacientes && (
+              <p className="text-sm text-slate-500 mt-1">
+                Nenhum paciente cadastrado. Cadastre pacientes na seção "Pacientes".
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Médico *
             </label>
-            <input
-              type="text"
+            <select
               name="doctor_name"
               value={formData.doctor_name}
               onChange={handleChange}
               required
+              disabled={loadingMedicos}
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="Nome do médico"
-            />
+            >
+              <option value="">
+                {loadingMedicos ? 'Carregando médicos...' : 'Selecione um médico'}
+              </option>
+              {medicos.map((medico) => (
+                <option key={medico.id} value={medico.name}>
+                  {medico.name} - {medico.specialty}
+                </option>
+              ))}
+            </select>
+            {medicos.length === 0 && !loadingMedicos && (
+              <p className="text-sm text-slate-500 mt-1">
+                Nenhum médico cadastrado. Cadastre médicos na seção "Médicos".
+              </p>
+            )}
           </div>
 
           <div>

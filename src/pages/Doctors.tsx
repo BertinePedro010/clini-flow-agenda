@@ -1,64 +1,119 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Plus, Search } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useClinic } from '@/contexts/ClinicContext';
+import { useToast } from '@/hooks/use-toast';
 import DoctorForm from '../components/DoctorForm';
 
 const Doctors = () => {
+  const { currentClinic } = useClinic();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingDoctor, setEditingDoctor] = useState(null);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - será substituído por dados reais do Supabase
-  const [doctors, setDoctors] = useState([
-    {
-      id: 1,
-      nome: 'Dr. João Santos',
-      crm: 'CRM/SP 123456',
-      especialidade: 'Cardiologia',
-      telefone: '(11) 99999-9999',
-      email: 'joao@clinica.com',
-    },
-    {
-      id: 2,
-      nome: 'Dra. Ana Costa',
-      crm: 'CRM/SP 654321',
-      especialidade: 'Dermatologia',
-      telefone: '(11) 88888-8888',
-      email: 'ana@clinica.com',
-    },
-    {
-      id: 3,
-      nome: 'Dr. Pedro Alves',
-      crm: 'CRM/SP 789123',
-      especialidade: 'Ortopedia',
-      telefone: '(11) 77777-7777',
-      email: 'pedro@clinica.com',
-    },
-  ]);
-
-  const handleSubmit = (formData: any) => {
-    if (editingDoctor) {
-      setDoctors(doctors.map(d => d.id === editingDoctor.id ? { ...editingDoctor, ...formData } : d));
-      setEditingDoctor(null);
-    } else {
-      const newDoctor = {
-        id: doctors.length + 1,
-        ...formData,
-      };
-      setDoctors([...doctors, newDoctor]);
+  useEffect(() => {
+    if (currentClinic) {
+      fetchDoctors();
     }
-    setShowForm(false);
+  }, [currentClinic]);
+
+  const fetchDoctors = async () => {
+    if (!currentClinic) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('clinic_doctors')
+        .select('*')
+        .eq('clinic_id', currentClinic.id)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching doctors:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar médicos",
+          variant: "destructive",
+        });
+      } else {
+        setDoctors(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchDoctors:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (formData: any) => {
+    if (!currentClinic) return;
+
+    try {
+      const doctorData = {
+        clinic_id: currentClinic.id,
+        name: formData.nome,
+        crm: formData.crm,
+        specialty: formData.especialidade,
+        email: formData.email,
+        phone: formData.telefone,
+      };
+
+      let result;
+      if (editingDoctor) {
+        result = await supabase
+          .from('clinic_doctors')
+          .update(doctorData)
+          .eq('id', editingDoctor.id);
+      } else {
+        result = await supabase
+          .from('clinic_doctors')
+          .insert([doctorData]);
+      }
+
+      if (result.error) {
+        console.error('Error saving doctor:', result.error);
+        toast({
+          title: "Erro",
+          description: "Erro ao salvar médico",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: editingDoctor ? "Médico atualizado com sucesso" : "Médico cadastrado com sucesso",
+        });
+        setShowForm(false);
+        setEditingDoctor(null);
+        fetchDoctors();
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao salvar médico",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEdit = (doctor: any) => {
-    setEditingDoctor(doctor);
+    setEditingDoctor({
+      ...doctor,
+      nome: doctor.name,
+      telefone: doctor.phone,
+      especialidade: doctor.specialty,
+    });
     setShowForm(true);
   };
 
   const filteredDoctors = doctors.filter(doctor =>
-    doctor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doctor.crm.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doctor.especialidade.toLowerCase().includes(searchTerm.toLowerCase())
+    doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (doctor.crm && doctor.crm.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (doctor.specialty && doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (showForm) {
@@ -112,35 +167,41 @@ const Doctors = () => {
 
       {/* Doctors List */}
       <div className="medical-card p-6">
-        <div className="space-y-4">
-          {filteredDoctors.map((doctor) => (
-            <div key={doctor.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-shadow">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800">{doctor.nome}</h3>
-                  <div className="text-sm text-slate-600 space-y-1">
-                    <p>{doctor.crm} - {doctor.especialidade}</p>
-                    <p>Tel: {doctor.telefone}</p>
-                    <p>E-mail: {doctor.email}</p>
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-slate-600">Carregando médicos...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredDoctors.map((doctor) => (
+              <div key={doctor.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-shadow">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <User className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">{doctor.name}</h3>
+                    <div className="text-sm text-slate-600 space-y-1">
+                      {doctor.crm && doctor.specialty && <p>{doctor.crm} - {doctor.specialty}</p>}
+                      {doctor.phone && <p>Tel: {doctor.phone}</p>}
+                      {doctor.email && <p>E-mail: {doctor.email}</p>}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleEdit(doctor)}
+                    className="px-4 py-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                  >
+                    Editar
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleEdit(doctor)}
-                  className="px-4 py-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-                >
-                  Editar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {filteredDoctors.length === 0 && (
+        {filteredDoctors.length === 0 && !loading && (
           <div className="text-center py-12">
             <User className="w-12 h-12 text-slate-400 mx-auto mb-4" />
             <p className="text-slate-600">Nenhum médico encontrado</p>
