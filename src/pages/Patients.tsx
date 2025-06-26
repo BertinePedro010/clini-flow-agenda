@@ -56,9 +56,9 @@ const Patients = () => {
       const patientData = {
         clinic_id: currentClinic.id,
         name: formData.nome,
-        email: formData.email,
-        phone: formData.telefone,
-        birth_date: formData.dataNascimento,
+        email: formData.email || null,
+        phone: formData.telefone || null,
+        birth_date: formData.dataNascimento || null,
       };
 
       let result;

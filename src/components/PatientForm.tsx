@@ -59,14 +59,13 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSubmit, onCancel, initialDa
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              CPF *
+              CPF
             </label>
             <input
               type="text"
               name="cpf"
               value={formData.cpf}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="000.000.000-00"
             />
@@ -74,14 +73,13 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSubmit, onCancel, initialDa
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Telefone *
+              Telefone
             </label>
             <input
               type="tel"
               name="telefone"
               value={formData.telefone}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="(00) 00000-0000"
             />
@@ -89,14 +87,13 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSubmit, onCancel, initialDa
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              E-mail *
+              E-mail
             </label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="email@exemplo.com"
             />
@@ -104,14 +101,13 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSubmit, onCancel, initialDa
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Data de Nascimento *
+              Data de Nascimento
             </label>
             <input
               type="date"
               name="dataNascimento"
               value={formData.dataNascimento}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>

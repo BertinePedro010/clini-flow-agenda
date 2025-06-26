@@ -56,10 +56,10 @@ const Doctors = () => {
       const doctorData = {
         clinic_id: currentClinic.id,
         name: formData.nome,
-        crm: formData.crm,
-        specialty: formData.especialidade,
-        email: formData.email,
-        phone: formData.telefone,
+        crm: formData.crm || null,
+        specialty: formData.especialidade || null,
+        email: formData.email || null,
+        phone: formData.telefone || null,
       };
 
       let result;

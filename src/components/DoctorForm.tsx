@@ -19,6 +19,7 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ onSubmit, onCancel, initialData
 
   const especialidades = [
     'Cardiologia',
+    'Dentista',
     'Dermatologia',
     'Endocrinologia',
     'Gastroenterologia',
@@ -74,14 +75,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ onSubmit, onCancel, initialData
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              CRM *
+              CRM
             </label>
             <input
               type="text"
               name="crm"
               value={formData.crm}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="CRM/UF 00000"
             />
@@ -89,13 +89,12 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ onSubmit, onCancel, initialData
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Especialidade *
+              Especialidade
             </label>
             <select
               name="especialidade"
               value={formData.especialidade}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             >
               <option value="">Selecione a especialidade</option>
@@ -109,14 +108,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ onSubmit, onCancel, initialData
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Telefone *
+              Telefone
             </label>
             <input
               type="tel"
               name="telefone"
               value={formData.telefone}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="(00) 00000-0000"
             />
@@ -124,14 +122,13 @@ const DoctorForm: React.FC<DoctorFormProps> = ({ onSubmit, onCancel, initialData
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              E-mail *
+              E-mail
             </label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="email@exemplo.com"
             />
