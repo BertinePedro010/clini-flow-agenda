@@ -39,49 +39,6 @@ const Dashboard = () => {
     },
   ];
 
-  const recentAppointments = [
-    {
-      id: 1,
-      patient: 'Maria Silva',
-      doctor: 'Dr. João Santos',
-      specialty: 'Cardiologia',
-      time: '09:00',
-      price: 200.00,
-      status: 'confirmado',
-    },
-    {
-      id: 2,
-      patient: 'Carlos Oliveira',
-      doctor: 'Dra. Ana Costa',
-      specialty: 'Dermatologia',
-      time: '10:30',
-      price: 180.00,
-      status: 'confirmado',
-    },
-    {
-      id: 3,
-      patient: 'Fernanda Lima',
-      doctor: 'Dr. Pedro Alves',
-      specialty: 'Ortopedia',
-      time: '14:00',
-      price: 190.00,
-      status: 'concluído',
-    },
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmado':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'concluído':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'cancelado':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -127,37 +84,7 @@ const Dashboard = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Agendamentos Recentes */}
-        <div className="medical-card p-6">
-          <h2 className="text-xl font-semibold text-slate-800 mb-4">Agendamentos de Hoje</h2>
-          <div className="space-y-4">
-            {recentAppointments.map((appointment) => (
-              <div key={appointment.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-800">{appointment.patient}</p>
-                    <p className="text-sm text-slate-600">{appointment.doctor}</p>
-                    <p className="text-xs text-slate-500">{appointment.specialty}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <span className="font-medium text-slate-700">{appointment.time}</span>
-                    <p className="text-sm text-green-600 font-semibold">R$ {appointment.price.toFixed(2)}</p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(appointment.status)}`}>
-                    {appointment.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Tabela de Preços */}
         <PricingManager />
       </div>
