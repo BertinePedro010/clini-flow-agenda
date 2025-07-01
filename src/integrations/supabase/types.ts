@@ -180,6 +180,51 @@ export type Database = {
         }
         Relationships: []
       }
+      clinic_users: {
+        Row: {
+          clinic_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          role: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_users_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_users_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinics: {
         Row: {
           created_at: string | null
@@ -388,6 +433,7 @@ export type Database = {
           name: string
           plan_expires_at: string | null
           plan_type: Database["public"]["Enums"]["plan_type"]
+          system_role: Database["public"]["Enums"]["user_system_role"] | null
           trial_expires_at: string
           updated_at: string
         }
@@ -397,6 +443,7 @@ export type Database = {
           name: string
           plan_expires_at?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"]
+          system_role?: Database["public"]["Enums"]["user_system_role"] | null
           trial_expires_at: string
           updated_at?: string
         }
@@ -406,6 +453,7 @@ export type Database = {
           name?: string
           plan_expires_at?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"]
+          system_role?: Database["public"]["Enums"]["user_system_role"] | null
           trial_expires_at?: string
           updated_at?: string
         }
@@ -445,6 +493,20 @@ export type Database = {
           clinic_id: string
         }[]
       }
+      get_user_clinics: {
+        Args: { user_id: string }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          domain_slug: string
+          owner_id: string
+          phone: string
+          plan_type: string
+          user_role: string
+          is_active: boolean
+        }[]
+      }
       get_user_default_clinic: {
         Args: { user_id: string }
         Returns: {
@@ -457,6 +519,14 @@ export type Database = {
           plan_type: string
         }[]
       }
+      is_clinic_admin: {
+        Args: { clinic_id: string }
+        Returns: boolean
+      }
+      is_superadmin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       update_specialty_price: {
         Args: { specialty_id: string; new_price: number }
         Returns: undefined
@@ -465,6 +535,7 @@ export type Database = {
     Enums: {
       message_status: "sent" | "delivered" | "read" | "failed"
       plan_type: "normal" | "plus" | "ultra"
+      user_system_role: "superadmin" | "clinic_admin" | "clinic_user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -582,6 +653,7 @@ export const Constants = {
     Enums: {
       message_status: ["sent", "delivered", "read", "failed"],
       plan_type: ["normal", "plus", "ultra"],
+      user_system_role: ["superadmin", "clinic_admin", "clinic_user"],
     },
   },
 } as const

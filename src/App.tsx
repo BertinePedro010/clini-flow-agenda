@@ -14,6 +14,7 @@ import Doctors from "./pages/Doctors";
 import Appointments from "./pages/Appointments";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import SuperAdmin from "./pages/SuperAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,11 @@ const App = () => (
               <Route path="/admin" element={
                 <ProtectedRoute requireAdmin={true}>
                   <Admin />
+                </ProtectedRoute>
+              } />
+              <Route path="/superadmin" element={
+                <ProtectedRoute requireSuperAdmin={true}>
+                  <SuperAdmin />
                 </ProtectedRoute>
               } />
               <Route path="/" element={

@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Settings, LogOut, Shield } from 'lucide-react';
+import { User, Settings, LogOut, Shield, Crown } from 'lucide-react';
 
 const UserMenu = () => {
   const { user, profile, signOut, isAdmin } = useAuth();
@@ -65,6 +65,10 @@ const UserMenu = () => {
             <DropdownMenuItem onClick={() => navigate('/admin')}>
               <Shield className="w-4 h-4 mr-2" />
               <span>Administração</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/superadmin')}>
+              <Crown className="w-4 h-4 mr-2" />
+              <span>Super Admin</span>
             </DropdownMenuItem>
           </>
         )}

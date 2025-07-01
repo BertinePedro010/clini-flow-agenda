@@ -6,9 +6,14 @@ import { Navigate } from 'react-router-dom';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  requireSuperAdmin?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin = false }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  requireAdmin = false, 
+  requireSuperAdmin = false 
+}) => {
   const { user, profile, loading } = useAuth();
 
   if (loading) {
@@ -24,6 +29,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (requireSuperAdmin && profile?.role !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
   if (requireAdmin && profile?.role !== 'admin') {
