@@ -1,38 +1,100 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Users, User, Clock } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
+import { supabase } from '@/integrations/supabase/client';
 import PricingManager from './PricingManager';
 
 const Dashboard = () => {
   const { currentClinic, loading } = useClinic();
-  
-  // Mock data - será substituído por dados reais do Supabase
-  const stats = [
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    totalPatients: 0,
+    activeDoctors: 0,
+    nextAppointment: null as string | null,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    if (currentClinic?.id) {
+      fetchStats();
+    }
+  }, [currentClinic?.id]);
+
+  const fetchStats = async () => {
+    if (!currentClinic?.id) return;
+
+    try {
+      setStatsLoading(true);
+      
+      // Buscar agendamentos de hoje
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayAppointments } = await supabase
+        .from('appointments_schedule')
+        .select('*')
+        .eq('clinic_id', currentClinic.id)
+        .eq('appointment_date', today);
+
+      // Buscar total de pacientes
+      const { data: patients } = await supabase
+        .from('clinic_patients')
+        .select('id')
+        .eq('clinic_id', currentClinic.id);
+
+      // Buscar médicos ativos
+      const { data: doctors } = await supabase
+        .from('clinic_doctors')
+        .select('id')
+        .eq('clinic_id', currentClinic.id);
+
+      // Buscar próximo agendamento
+      const { data: nextAppointments } = await supabase
+        .from('appointments_schedule')
+        .select('appointment_time')
+        .eq('clinic_id', currentClinic.id)
+        .eq('appointment_date', today)
+        .gte('appointment_time', new Date().toTimeString().split(' ')[0])
+        .order('appointment_time', { ascending: true })
+        .limit(1);
+
+      setStats({
+        todayAppointments: todayAppointments?.length || 0,
+        totalPatients: patients?.length || 0,
+        activeDoctors: doctors?.length || 0,
+        nextAppointment: nextAppointments?.[0]?.appointment_time || null,
+      });
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const statsCards = [
     {
       title: 'Agendamentos Hoje',
-      value: '12',
+      value: statsLoading ? '...' : stats.todayAppointments.toString(),
       icon: Calendar,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
     },
     {
       title: 'Pacientes Cadastrados',
-      value: '248',
+      value: statsLoading ? '...' : stats.totalPatients.toString(),
       icon: Users,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
     },
     {
       title: 'Médicos Ativos',
-      value: '8',
+      value: statsLoading ? '...' : stats.activeDoctors.toString(),
       icon: User,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
     },
     {
       title: 'Próximo Atendimento',
-      value: '14:30',
+      value: statsLoading ? '...' : (stats.nextAppointment || '--:--'),
       icon: Clock,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
@@ -66,7 +128,7 @@ const Dashboard = () => {
 
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
+        {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div key={index} className="medical-card p-6">
