@@ -14,7 +14,7 @@ import {
 import { User, Settings, LogOut, Shield, Crown } from 'lucide-react';
 
 const UserMenu = () => {
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -23,12 +23,10 @@ const UserMenu = () => {
   };
 
   const handleSettings = () => {
-    // Por enquanto, vamos mostrar um alerta informando que está em desenvolvimento
     alert('Página de configurações em desenvolvimento');
   };
 
   const handleProfile = () => {
-    // Por enquanto, vamos mostrar um alerta informando que está em desenvolvimento
     alert('Página de perfil em desenvolvimento');
   };
 
@@ -39,6 +37,9 @@ const UserMenu = () => {
       </Button>
     );
   }
+
+  const isSuperAdmin = profile.system_role === 'superadmin';
+  const isAdmin = profile.system_role === 'superadmin' || profile.system_role === 'clinic_admin';
 
   return (
     <DropdownMenu>
@@ -66,11 +67,13 @@ const UserMenu = () => {
               <Shield className="w-4 h-4 mr-2" />
               <span>Administração</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/superadmin')}>
-              <Crown className="w-4 h-4 mr-2" />
-              <span>Super Admin</span>
-            </DropdownMenuItem>
           </>
+        )}
+        {isSuperAdmin && (
+          <DropdownMenuItem onClick={() => navigate('/superadmin')}>
+            <Crown className="w-4 h-4 mr-2" />
+            <span>Super Admin</span>
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>

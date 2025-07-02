@@ -31,20 +31,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/auth" replace />;
   }
 
-  if (requireSuperAdmin && profile?.role !== 'admin') {
+  if (requireSuperAdmin && profile?.system_role !== 'superadmin') {
     return <Navigate to="/" replace />;
   }
 
-  if (requireAdmin && profile?.role !== 'admin') {
+  if (requireAdmin && profile?.system_role !== 'superadmin' && profile?.system_role !== 'clinic_admin') {
     return <Navigate to="/" replace />;
   }
 
-  if (profile?.status === 'blocked') {
+  if (profile?.plan_type && new Date() > new Date(profile.trial_expires_at) && !profile.plan_expires_at) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Conta Bloqueada</h1>
-          <p className="text-slate-600 mb-4">Sua conta foi bloqueada. Entre em contato com o administrador.</p>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Plano Expirado</h1>
+          <p className="text-slate-600 mb-4">Seu período de teste expirou. Atualize seu plano para continuar.</p>
         </div>
       </div>
     );
