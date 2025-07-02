@@ -468,6 +468,18 @@ export type Database = {
         Args: { clinic_id: string; specialty_name: string; price: number }
         Returns: undefined
       }
+      add_user_to_clinic: {
+        Args: {
+          user_email: string
+          clinic_id_param: string
+          user_role?: string
+        }
+        Returns: {
+          success: boolean
+          message: string
+          user_id: string
+        }[]
+      }
       generate_unique_slug: {
         Args: { clinic_name: string }
         Returns: string
@@ -482,6 +494,17 @@ export type Database = {
           owner_id: string
           phone: string
           plan_type: string
+        }[]
+      }
+      get_clinic_users: {
+        Args: { clinic_id_param: string }
+        Returns: {
+          id: string
+          name: string
+          email: string
+          role: string
+          is_active: boolean
+          created_at: string
         }[]
       }
       get_specialties_pricing: {

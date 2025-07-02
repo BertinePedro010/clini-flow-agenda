@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Building2, Plus, Users, Edit, ArrowLeft } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Building2, Plus, Edit, Trash2, Users, Phone, Globe } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import ClinicUserManager from '@/components/ClinicUserManager';
 
 interface Clinic {
@@ -24,33 +24,25 @@ interface Clinic {
 }
 
 const SuperAdmin = () => {
-  const { user, profile, loading } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [clinics, setClinics] = useState<Clinic[]>([]);
-  const [loadingClinics, setLoadingClinics] = useState(true);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [creatingClinic, setCreatingClinic] = useState(false);
-  const [newClinic, setNewClinic] = useState({
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingClinic, setEditingClinic] = useState<Clinic | null>(null);
+  const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    plan_type: 'normal'
+    plan_type: 'normal',
+    domain_slug: ''
   });
 
   useEffect(() => {
-    if (!loading && (!user || profile?.system_role !== 'superadmin')) {
-      navigate('/auth');
-      return;
-    }
-
-    if (profile?.system_role === 'superadmin') {
-      fetchClinics();
-    }
-  }, [user, profile, loading, navigate]);
+    fetchClinics();
+  }, []);
 
   const fetchClinics = async () => {
     try {
-      setLoadingClinics(true);
+      setLoading(true);
       const { data, error } = await supabase
         .from('clinics')
         .select('*')
@@ -69,324 +61,302 @@ const SuperAdmin = () => {
     } catch (error) {
       console.error('Error in fetchClinics:', error);
     } finally {
-      setLoadingClinics(false);
+      setLoading(false);
     }
   };
 
-  const generateUniqueSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single
-      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  const generateUniqueSlug = async (name: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('generate_unique_slug', { clinic_name: name });
+
+      if (error) {
+        console.error('Error generating slug:', error);
+        return name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in generateUniqueSlug:', error);
+      return name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    }
   };
 
-  const handleCreateClinic = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newClinic.name.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome da clínica é obrigatório.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      setCreatingClinic(true);
-      
-      // Gerar slug único
-      const baseSlug = generateUniqueSlug(newClinic.name);
-      let slug = baseSlug;
-      let counter = 1;
-      
-      // Verificar se slug já existe
-      while (true) {
-        const { data: existingClinic } = await supabase
+      if (editingClinic) {
+        // Atualizar clínica existente
+        const { error } = await supabase
           .from('clinics')
-          .select('id')
-          .eq('slug', slug)
-          .single();
-          
-        if (!existingClinic) break;
-        
-        slug = `${baseSlug}-${counter}`;
-        counter++;
-      }
+          .update({
+            name: formData.name,
+            phone: formData.phone,
+            plan_type: formData.plan_type,
+            domain_slug: formData.domain_slug
+          })
+          .eq('id', editingClinic.id);
 
-      console.log('Creating clinic with data:', {
-        name: newClinic.name.trim(),
-        slug: slug,
-        domain_slug: slug,
-        owner_id: user?.id,
-        phone: newClinic.phone || '',
-        plan_type: newClinic.plan_type
-      });
-
-      const { data: clinicData, error: clinicError } = await supabase
-        .from('clinics')
-        .insert({
-          name: newClinic.name.trim(),
-          slug: slug,
-          domain_slug: slug,
-          owner_id: user?.id || '',
-          phone: newClinic.phone || '',
-          plan_type: newClinic.plan_type
-        })
-        .select()
-        .single();
-
-      if (clinicError) {
-        console.error('Error creating clinic:', clinicError);
-        toast({
-          title: "Erro",
-          description: `Não foi possível criar a clínica: ${clinicError.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Clinic created successfully:', clinicData);
-
-      // Criar associação do usuário atual como admin da clínica
-      if (clinicData) {
-        const { error: associationError } = await supabase
-          .from('clinic_users')
-          .insert({
-            clinic_id: clinicData.id,
-            user_id: user?.id,
-            role: 'admin',
-            is_active: true
-          });
-
-        if (associationError) {
-          console.error('Error creating clinic association:', associationError);
-          // Não vamos falhar aqui, pois a clínica já foi criada
+        if (error) {
+          console.error('Error updating clinic:', error);
           toast({
-            title: "Aviso",
-            description: "Clínica criada, mas houve problema na associação do usuário.",
-            variant: "default",
+            title: "Erro",
+            description: "Não foi possível atualizar a clínica.",
+            variant: "destructive",
           });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: "Clínica atualizada com sucesso.",
+          });
+          fetchClinics();
+          setIsDialogOpen(false);
+          resetForm();
+        }
+      } else {
+        // Criar nova clínica
+        const slug = await generateUniqueSlug(formData.name);
+        
+        const { error } = await supabase
+          .from('clinics')
+          .insert({
+            name: formData.name,
+            slug: slug,
+            phone: formData.phone,
+            plan_type: formData.plan_type,
+            domain_slug: formData.domain_slug || slug,
+            owner_id: 'temp-owner' // Será atualizado quando um owner for atribuído
+          });
+
+        if (error) {
+          console.error('Error creating clinic:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível criar a clínica.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: "Clínica criada com sucesso.",
+          });
+          fetchClinics();
+          setIsDialogOpen(false);
+          resetForm();
         }
       }
-
-      toast({
-        title: "Sucesso",
-        description: "Clínica criada com sucesso!",
-      });
-      
-      setIsCreateDialogOpen(false);
-      setNewClinic({ name: '', phone: '', plan_type: 'normal' });
-      fetchClinics();
-      
     } catch (error) {
-      console.error('Error in handleCreateClinic:', error);
-      toast({
-        title: "Erro",
-        description: "Erro inesperado ao criar clínica.",
-        variant: "destructive",
-      });
-    } finally {
-      setCreatingClinic(false);
+      console.error('Error in handleSubmit:', error);
     }
   };
 
-  if (loading || loadingClinics) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleEdit = (clinic: Clinic) => {
+    setEditingClinic(clinic);
+    setFormData({
+      name: clinic.name,
+      phone: clinic.phone || '',
+      plan_type: clinic.plan_type,
+      domain_slug: clinic.domain_slug || ''
+    });
+    setIsDialogOpen(true);
+  };
 
-  if (profile?.system_role !== 'superadmin') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-red-600">Acesso Negado</CardTitle>
-            <CardDescription>
-              Você não tem permissão para acessar esta área.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => navigate('/')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar ao Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleDelete = async (clinicId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta clínica? Esta ação não pode ser desfeita.')) {
+      try {
+        const { error } = await supabase
+          .from('clinics')
+          .delete()
+          .eq('id', clinicId);
+
+        if (error) {
+          console.error('Error deleting clinic:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível excluir a clínica.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: "Clínica excluída com sucesso.",
+          });
+          fetchClinics();
+        }
+      } catch (error) {
+        console.error('Error in handleDelete:', error);
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      phone: '',
+      plan_type: 'normal',
+      domain_slug: ''
+    });
+    setEditingClinic(null);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    resetForm();
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">
-                Painel Super Administrativo
-              </h1>
-              <p className="text-slate-600">
-                Gerencie todas as clínicas do sistema
-              </p>
-            </div>
-            <div className="flex space-x-4">
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nova Clínica
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Criar Nova Clínica</DialogTitle>
-                    <DialogDescription>
-                      Preencha os dados da nova clínica
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateClinic} className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Nome da Clínica *</Label>
-                      <Input
-                        id="name"
-                        value={newClinic.name}
-                        onChange={(e) => setNewClinic({ ...newClinic, name: e.target.value })}
-                        placeholder="Digite o nome da clínica"
-                        required
-                        disabled={creatingClinic}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Telefone</Label>
-                      <Input
-                        id="phone"
-                        value={newClinic.phone}
-                        onChange={(e) => setNewClinic({ ...newClinic, phone: e.target.value })}
-                        placeholder="(00) 00000-0000"
-                        disabled={creatingClinic}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="plan_type">Tipo de Plano</Label>
-                      <select
-                        id="plan_type"
-                        value={newClinic.plan_type}
-                        onChange={(e) => setNewClinic({ ...newClinic, plan_type: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        disabled={creatingClinic}
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="plus">Plus</option>
-                        <option value="ultra">Ultra</option>
-                      </select>
-                    </div>
-                    <div className="flex justify-end space-x-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setIsCreateDialogOpen(false)}
-                        disabled={creatingClinic}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button type="submit" disabled={creatingClinic}>
-                        {creatingClinic ? "Criando..." : "Criar Clínica"}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-              
-              <Button variant="outline" onClick={() => navigate('/')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar ao Dashboard
-              </Button>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-slate-800">Painel Administrativo</h1>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Clínica
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingClinic ? 'Editar Clínica' : 'Nova Clínica'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingClinic 
+                  ? 'Edite as informações da clínica abaixo.'
+                  : 'Preencha as informações da nova clínica.'
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome da Clínica</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="domain_slug">Domínio</Label>
+                  <Input
+                    id="domain_slug"
+                    value={formData.domain_slug}
+                    onChange={(e) => setFormData({ ...formData, domain_slug: e.target.value })}
+                    placeholder="exemplo (será: exemplo.clinica.com)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plan_type">Tipo de Plano</Label>
+                  <select
+                    id="plan_type"
+                    value={formData.plan_type}
+                    onChange={(e) => setFormData({ ...formData, plan_type: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="plus">Plus</option>
+                    <option value="ultra">Ultra</option>
+                  </select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  {editingClinic ? 'Atualizar' : 'Criar'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        <div className="grid gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Building2 className="w-5 h-5 mr-2" />
-                Clínicas Cadastradas ({clinics.length})
-              </CardTitle>
-              <CardDescription>
-                Visualize e gerencie todas as clínicas do sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {clinics.length > 0 ? (
-                <div className="space-y-4">
-                  {clinics.map((clinic) => (
-                    <div key={clinic.id} className="flex items-center justify-between p-4 border rounded-lg bg-white">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Building2 className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-800">
-                            {clinic.name}
-                          </h3>
-                          <p className="text-sm text-slate-600">
-                            Slug: {clinic.slug}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Criada em: {new Date(clinic.created_at).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
+      <Tabs defaultValue="clinics" className="w-full">
+        <TabsList>
+          <TabsTrigger value="clinics">Clínicas</TabsTrigger>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="clinics" className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-slate-600">Carregando clínicas...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {clinics.map((clinic) => (
+                <Card key={clinic.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="w-5 h-5 text-blue-600" />
                       </div>
-                      
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-slate-700">
-                            Plano: <span className="capitalize">{clinic.plan_type}</span>
-                          </p>
-                          {clinic.phone && (
-                            <p className="text-xs text-slate-500">
-                              Tel: {clinic.phone}
-                            </p>
-                          )}
-                        </div>
-                        
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-1" />
-                          Editar
+                      <Badge variant="outline" className="capitalize">
+                        {clinic.plan_type}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-lg">{clinic.name}</CardTitle>
+                    <CardDescription>
+                      Criada em {new Date(clinic.created_at).toLocaleDateString('pt-BR')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {clinic.phone && (
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Phone className="w-4 h-4 mr-2" />
+                        {clinic.phone}
+                      </div>
+                    )}
+                    {clinic.domain_slug && (
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Globe className="w-4 h-4 mr-2" />
+                        {clinic.domain_slug}.clinica.com
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(clinic)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(clinic.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Building2 className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-600 mb-2">
-                    Nenhuma clínica encontrada
-                  </h3>
-                  <p className="text-slate-500">
-                    Clique em "Nova Clínica" para criar a primeira clínica.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Gerenciador de Usuários das Clínicas */}
-        <ClinicUserManager />
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="users">
+          <ClinicUserManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
