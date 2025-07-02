@@ -7,8 +7,10 @@ import { useToast } from '@/hooks/use-toast';
 interface UserProfile {
   id: string;
   name: string;
-  role: 'user' | 'admin';
-  status: 'active' | 'blocked';
+  system_role: 'superadmin' | 'clinic_admin' | 'clinic_user' | null;
+  plan_type: 'normal' | 'plus' | 'ultra';
+  trial_expires_at: string;
+  plan_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,7 +23,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  updateProfile: (data: { name?: string }) => Promise<{ error: any }>;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,17 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (error) {
                 console.error('Error fetching profile:', error);
               } else {
-                // Check if user is admin by email (for demo purposes)
-                const isUserAdmin = session.user.email === 'pedrobertine32@gmail.com';
-                
-                setProfile({
-                  id: profileData.id,
-                  name: profileData.name,
-                  role: isUserAdmin ? 'admin' : 'user',
-                  status: 'active',
-                  created_at: profileData.created_at,
-                  updated_at: profileData.updated_at
-                });
+                setProfile(profileData);
               }
             } catch (error) {
               console.error('Error in profile fetch:', error);
@@ -153,6 +147,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (data: { name?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('users_profiles')
+        .update(data)
+        .eq('id', user?.id);
+
+      if (error) {
+        toast({
+          title: "Erro ao atualizar",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        // Refresh profile data
+        if (user) {
+          const { data: profileData } = await supabase
+            .from('users_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          
+          if (profileData) {
+            setProfile(profileData);
+          }
+        }
+        
+        toast({
+          title: "Perfil atualizado",
+          description: "Suas informações foram atualizadas com sucesso.",
+        });
+      }
+
+      return { error };
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -168,7 +202,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.system_role === 'clinic_admin' || profile?.system_role === 'superadmin';
+  const isSuperAdmin = profile?.system_role === 'superadmin';
 
   const value = {
     user,
@@ -178,7 +213,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    updateProfile,
     isAdmin,
+    isSuperAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -12,6 +12,8 @@ import Dashboard from "./components/Dashboard";
 import Patients from "./pages/Patients";
 import Doctors from "./pages/Doctors";
 import Appointments from "./pages/Appointments";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import SuperAdmin from "./pages/SuperAdmin";
@@ -48,6 +50,8 @@ const App = () => (
                 <Route path="pacientes" element={<Patients />} />
                 <Route path="medicos" element={<Doctors />} />
                 <Route path="agendamentos" element={<Appointments />} />
+                <Route path="perfil" element={<Profile />} />
+                <Route path="configuracoes" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

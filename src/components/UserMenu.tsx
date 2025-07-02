@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Settings, LogOut, Shield, Crown } from 'lucide-react';
+import { User, Settings, LogOut, Shield, Crown, UserCircle } from 'lucide-react';
 
 const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
@@ -22,12 +22,12 @@ const UserMenu = () => {
     navigate('/auth');
   };
 
-  const handleSettings = () => {
-    alert('Página de configurações em desenvolvimento');
+  const handleProfile = () => {
+    navigate('/perfil');
   };
 
-  const handleProfile = () => {
-    alert('Página de perfil em desenvolvimento');
+  const handleSettings = () => {
+    navigate('/configuracoes');
   };
 
   if (!user || !profile) {
@@ -53,7 +53,7 @@ const UserMenu = () => {
         <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleProfile}>
-          <User className="w-4 h-4 mr-2" />
+          <UserCircle className="w-4 h-4 mr-2" />
           <span>Perfil</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSettings}>
