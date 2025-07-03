@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -17,58 +18,40 @@ const Auth = () => {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { user } = useAuth();
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
+      console.log('User logged in, redirecting to home');
       navigate('/');
     }
   }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha email e senha.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const { error } = await signIn(email, password);
       
-      if (error) {
-        console.error('Login error:', error);
-        
-        // Mensagens de erro mais amigáveis
-        let errorMessage = 'Erro no login';
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Email ou senha incorretos';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada';
-        } else if (error.message.includes('Too many requests')) {
-          errorMessage = 'Muitas tentativas. Tente novamente em alguns minutos';
-        }
-        
-        toast({
-          title: "Erro no login",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo de volta!",
-        });
-        navigate('/');
+      if (!error) {
+        // O AuthContext já vai mostrar o toast de sucesso e redirecionar
+        console.log('Login successful, context will handle redirect');
       }
     } catch (error) {
-      console.error('Unexpected login error:', error);
-      toast({
-        title: "Erro no login",
-        description: "Erro inesperado. Tente novamente.",
-        variant: "destructive",
-      });
+      console.error('Login error:', error);
     }
     
     setLoading(false);
@@ -76,52 +59,38 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password || !name.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Senha muito curta",
+        description: "A senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const { error } = await signUp(email, password, name);
       
-      const { error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            name: name.trim(),
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Signup error:', error);
-        
-        let errorMessage = 'Erro no cadastro';
-        if (error.message.includes('already registered')) {
-          errorMessage = 'Este email já está cadastrado';
-        } else if (error.message.includes('Password should be')) {
-          errorMessage = 'A senha deve ter pelo menos 6 caracteres';
-        } else if (error.message.includes('Invalid email')) {
-          errorMessage = 'Email inválido';
-        }
-        
-        toast({
-          title: "Erro no cadastro",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Cadastro realizado!",
-          description: "Verifique seu email para confirmar a conta.",
-        });
+      if (!error) {
+        setConfirmationMessage('Cadastro realizado! Verifique seu email para confirmar a conta.');
+        // Limpar formulário
+        setEmail('');
+        setPassword('');
+        setName('');
       }
     } catch (error) {
-      console.error('Unexpected signup error:', error);
-      toast({
-        title: "Erro no cadastro",
-        description: "Erro inesperado. Tente novamente.",
-        variant: "destructive",
-      });
+      console.error('Signup error:', error);
     }
     
     setLoading(false);
@@ -145,8 +114,8 @@ const Auth = () => {
       if (error) {
         console.error('Google sign in error:', error);
         toast({
-          title: "Erro no login",
-          description: "Erro ao fazer login com Google. Tente novamente.",
+          title: "Erro no login com Google",
+          description: error.message || "Erro ao fazer login com Google. Tente novamente.",
           variant: "destructive",
         });
       }
@@ -174,10 +143,21 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         
+        {confirmationMessage && (
+          <div className="px-6 mb-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {confirmationMessage}
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+        
         <div className="px-6 pb-4">
           <Button 
             onClick={handleGoogleSignIn}
-            disabled={googleLoading}
+            disabled={googleLoading || loading}
             variant="outline"
             className="w-full mb-4"
             type="button"
@@ -219,7 +199,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -231,7 +211,7 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     minLength={6}
                   />
                 </div>
@@ -261,7 +241,7 @@ const Auth = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -273,7 +253,7 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -285,7 +265,7 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     minLength={6}
                   />
                 </div>

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data: profileData, error } = await supabase
         .from('users_profiles')
         .select('*')
@@ -55,19 +55,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Error fetching profile:', error);
-        // Se o perfil não existe, pode ser um usuário novo via Google
         if (error.code === 'PGRST116') {
-          console.log('Profile not found, user might be new');
+          console.log('Profile not found, creating default profile');
+          // Tentar criar perfil padrão se não existir
+          const { data: newProfile, error: createError } = await supabase
+            .from('users_profiles')
+            .insert({
+              id: userId,
+              name: 'Usuário',
+              plan_type: 'normal',
+              trial_expires_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating profile:', createError);
+          } else {
+            console.log('Profile created:', newProfile);
+            setProfile(newProfile);
+          }
         }
       } else {
+        console.log('Profile loaded:', profileData);
         setProfile(profileData);
       }
     } catch (error) {
-      console.error('Error in profile fetch:', error);
+      console.error('Error in fetchUserProfile:', error);
     }
   };
 
   useEffect(() => {
+    console.log('Setting up auth listeners');
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -76,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Aguardar um pouco antes de buscar o perfil para garantir que foi criado
+          // Aguardar um pouco antes de buscar o perfil
           setTimeout(() => {
             fetchUserProfile(session.user.id);
           }, 100);
@@ -89,7 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+      }
+      
+      console.log('Initial session check:', session);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -105,23 +130,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting sign in for:', email);
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
+      console.log('Sign in response:', { data, error });
+
+      if (error) {
+        console.error('Sign in error:', error);
+        
+        // Verificar se é problema de email não confirmado
+        if (error.message.includes('Email not confirmed')) {
+          toast({
+            title: "Email não confirmado",
+            description: "Verifique seu email e clique no link de confirmação antes de fazer login.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro no login",
+            description: error.message || "Credenciais inválidas",
+            variant: "destructive",
+          });
+        }
+      } else if (data.user) {
+        console.log('Login successful for user:', data.user.id);
+        toast({
+          title: "Login realizado!",
+          description: "Bem-vindo de volta!",
+        });
+      }
+
       return { error };
     } catch (error) {
-      console.error('Sign in error:', error);
+      console.error('Unexpected sign in error:', error);
+      toast({
+        title: "Erro no login",
+        description: "Erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
       return { error };
+    } finally {
+      setLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
+      console.log('Attempting sign up for:', email);
+      setLoading(true);
+      
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -132,10 +197,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
+      console.log('Sign up response:', { data, error });
+
+      if (error) {
+        console.error('Sign up error:', error);
+        toast({
+          title: "Erro no cadastro",
+          description: error.message || "Erro ao criar conta",
+          variant: "destructive",
+        });
+      } else if (data.user) {
+        console.log('Sign up successful for user:', data.user.id);
+        
+        // Se o usuário foi criado mas não precisa confirmar email
+        if (data.user && !data.user.email_confirmed_at) {
+          toast({
+            title: "Cadastro realizado!",
+            description: "Verifique seu email para confirmar a conta antes de fazer login.",
+          });
+        } else {
+          toast({
+            title: "Cadastro realizado!",
+            description: "Conta criada com sucesso. Você já pode fazer login.",
+          });
+        }
+      }
+
       return { error };
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('Unexpected sign up error:', error);
+      toast({
+        title: "Erro no cadastro",
+        description: "Erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
       return { error };
+    } finally {
+      setLoading(false);
     }
   };
 
