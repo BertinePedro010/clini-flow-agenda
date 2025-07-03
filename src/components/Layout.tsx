@@ -8,9 +8,8 @@ import Sidebar from './Sidebar';
 import UserMenu from './UserMenu';
 
 const Layout = () => {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, needsClinicSelection } = useAuth();
   const { currentClinic, loading: clinicLoading, setCurrentClinic } = useClinic();
-  const [showClinicSelector, setShowClinicSelector] = useState(false);
 
   // Se ainda está carregando auth, mostrar loading
   if (authLoading) {
@@ -51,6 +50,17 @@ const Layout = () => {
     );
   }
 
+  // Se precisa selecionar clínica (após login)
+  if (needsClinicSelection) {
+    return (
+      <ClinicSelector 
+        onClinicSelected={(clinic) => {
+          setCurrentClinic(clinic);
+        }} 
+      />
+    );
+  }
+
   // Se está carregando clínicas, mostrar loading
   if (clinicLoading) {
     return (
@@ -69,7 +79,6 @@ const Layout = () => {
       <ClinicSelector 
         onClinicSelected={(clinic) => {
           setCurrentClinic(clinic);
-          setShowClinicSelector(false);
         }} 
       />
     );

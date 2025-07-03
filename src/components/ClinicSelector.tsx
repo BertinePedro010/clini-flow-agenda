@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useClinic } from '@/contexts/ClinicContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,10 +22,14 @@ interface Clinic {
 
 interface ClinicSelectorProps {
   onClinicSelected: (clinic: Clinic) => void;
+  showHeader?: boolean;
 }
 
-const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelected }) => {
-  const { user } = useAuth();
+const ClinicSelector: React.FC<ClinicSelectorProps> = ({ 
+  onClinicSelected, 
+  showHeader = true 
+}) => {
+  const { user, setClinicSelected } = useAuth();
   const { toast } = useToast();
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,12 +59,6 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelected }) => 
         });
       } else {
         setClinics(data || []);
-        
-        // Se há apenas uma clínica, seleciona automaticamente
-        if (data && data.length === 1) {
-          setSelectedClinicId(data[0].id);
-          onClinicSelected(data[0]);
-        }
       }
     } catch (error) {
       console.error('Error in fetchUserClinics:', error);
@@ -71,6 +70,7 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelected }) => 
   const handleClinicSelect = (clinic: Clinic) => {
     setSelectedClinicId(clinic.id);
     onClinicSelected(clinic);
+    setClinicSelected();
   };
 
   if (loading) {
@@ -104,14 +104,16 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelected }) => 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            Selecione uma Clínica
-          </h1>
-          <p className="text-slate-600">
-            Escolha a clínica que deseja acessar
-          </p>
-        </div>
+        {showHeader && (
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">
+              Selecione uma Clínica
+            </h1>
+            <p className="text-slate-600">
+              Escolha a clínica que deseja acessar para trabalhar
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clinics.map((clinic) => (
@@ -146,11 +148,9 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelected }) => 
                   )}
                 </div>
                 
-                {selectedClinicId === clinic.id && (
-                  <Button className="w-full mt-4">
-                    Acessar Clínica
-                  </Button>
-                )}
+                <Button className="w-full mt-4" variant="outline">
+                  Selecionar Clínica
+                </Button>
               </CardContent>
             </Card>
           ))}

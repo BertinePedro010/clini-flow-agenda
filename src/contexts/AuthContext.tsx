@@ -19,10 +19,12 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
+  needsClinicSelection: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (data: { name?: string }) => Promise<{ error: any }>;
+  setClinicSelected: () => void;
   isAdmin: boolean;
   isSuperAdmin: boolean;
 }
@@ -42,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsClinicSelection, setNeedsClinicSelection] = useState(false);
   const { toast } = useToast();
 
   const fetchUserProfile = async (userId: string) => {
@@ -57,7 +60,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
           console.log('Profile not found, creating default profile');
-          // Tentar criar perfil padrão se não existir
           const { data: newProfile, error: createError } = await supabase
             .from('users_profiles')
             .insert({
@@ -85,10 +87,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const checkIfNeedsClinicSelection = async (userId: string, userProfile: UserProfile) => {
+    // Superadmins não precisam selecionar clínica
+    if (userProfile?.system_role === 'superadmin') {
+      setNeedsClinicSelection(false);
+      return;
+    }
+
+    try {
+      // Verificar se o usuário tem clínicas associadas
+      const { data: userClinics, error } = await supabase
+        .rpc('get_user_clinics', { user_id: userId });
+
+      if (error) {
+        console.error('Error checking user clinics:', error);
+        setNeedsClinicSelection(true);
+        return;
+      }
+
+      // Se não tem clínicas ou tem mais de uma, precisa selecionar
+      if (!userClinics || userClinics.length === 0) {
+        setNeedsClinicSelection(true);
+      } else if (userClinics.length === 1) {
+        // Se tem apenas uma clínica, não precisa selecionar
+        setNeedsClinicSelection(false);
+      } else {
+        // Se tem múltiplas clínicas, precisa selecionar
+        setNeedsClinicSelection(true);
+      }
+    } catch (error) {
+      console.error('Error in checkIfNeedsClinicSelection:', error);
+      setNeedsClinicSelection(true);
+    }
+  };
+
   useEffect(() => {
     console.log('Setting up auth listeners');
     
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session);
@@ -96,19 +131,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Aguardar um pouco antes de buscar o perfil
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
+          setTimeout(async () => {
+            await fetchUserProfile(session.user.id);
           }, 100);
         } else {
           setProfile(null);
+          setNeedsClinicSelection(false);
         }
         
         setLoading(false);
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Error getting session:', error);
@@ -128,6 +162,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // Verificar necessidade de seleção de clínica quando o perfil é carregado
+  useEffect(() => {
+    if (user && profile) {
+      checkIfNeedsClinicSelection(user.id, profile);
+    }
+  }, [user, profile]);
+
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Attempting sign in for:', email);
@@ -143,7 +184,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Sign in error:', error);
         
-        // Verificar se é problema de email não confirmado
         if (error.message.includes('Email not confirmed')) {
           toast({
             title: "Email não confirmado",
@@ -292,6 +332,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const setClinicSelected = () => {
+    setNeedsClinicSelection(false);
+  };
+
   const isAdmin = profile?.system_role === 'clinic_admin' || profile?.system_role === 'superadmin';
   const isSuperAdmin = profile?.system_role === 'superadmin';
 
@@ -300,10 +344,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     loading,
+    needsClinicSelection,
     signIn,
     signUp,
     signOut,
     updateProfile,
+    setClinicSelected,
     isAdmin,
     isSuperAdmin,
   };
