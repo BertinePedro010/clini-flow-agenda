@@ -546,6 +546,10 @@ export type Database = {
         Args: { clinic_id: string }
         Returns: boolean
       }
+      is_clinic_admin_safe: {
+        Args: { clinic_id: string }
+        Returns: boolean
+      }
       is_superadmin: {
         Args: Record<PropertyKey, never>
         Returns: boolean

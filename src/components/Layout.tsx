@@ -8,9 +8,21 @@ import Sidebar from './Sidebar';
 import UserMenu from './UserMenu';
 
 const Layout = () => {
-  const { user, profile } = useAuth();
-  const { currentClinic, loading, setCurrentClinic } = useClinic();
+  const { user, profile, loading: authLoading } = useAuth();
+  const { currentClinic, loading: clinicLoading, setCurrentClinic } = useClinic();
   const [showClinicSelector, setShowClinicSelector] = useState(false);
+
+  // Se ainda está carregando auth, mostrar loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Se é superadmin, não precisa de clínica
   if (profile?.system_role === 'superadmin') {
@@ -39,8 +51,20 @@ const Layout = () => {
     );
   }
 
-  // Se não tem clínica selecionada e não está carregando, mostrar seletor
-  if (!currentClinic && !loading) {
+  // Se está carregando clínicas, mostrar loading
+  if (clinicLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Carregando clínica...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não tem clínica selecionada, mostrar seletor
+  if (!currentClinic) {
     return (
       <ClinicSelector 
         onClinicSelected={(clinic) => {
@@ -48,18 +72,6 @@ const Layout = () => {
           setShowClinicSelector(false);
         }} 
       />
-    );
-  }
-
-  // Se está carregando, mostrar loading
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Carregando...</p>
-        </div>
-      </div>
     );
   }
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +42,7 @@ const SuperAdmin = () => {
   const fetchClinics = async () => {
     try {
       setLoading(true);
+      // Usar query direta para evitar problemas com RLS
       const { data, error } = await supabase
         .from('clinics')
         .select('*')
@@ -60,6 +60,11 @@ const SuperAdmin = () => {
       }
     } catch (error) {
       console.error('Error in fetchClinics:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar clínicas.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -148,6 +153,11 @@ const SuperAdmin = () => {
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao processar solicitação.",
+        variant: "destructive",
+      });
     }
   };
 
