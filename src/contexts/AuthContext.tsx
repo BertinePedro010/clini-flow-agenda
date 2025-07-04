@@ -184,16 +184,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Sign in error:', error);
         
+        // Mensagens de erro mais específicas
         if (error.message.includes('Email not confirmed')) {
           toast({
             title: "Email não confirmado",
             description: "Verifique seu email e clique no link de confirmação antes de fazer login.",
             variant: "destructive",
           });
+        } else if (error.message.includes('Invalid login credentials')) {
+          toast({
+            title: "Credenciais inválidas",
+            description: "Email ou senha incorretos. Verifique suas credenciais e tente novamente.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Too many requests')) {
+          toast({
+            title: "Muitas tentativas",
+            description: "Aguarde alguns minutos antes de tentar novamente.",
+            variant: "destructive",
+          });
         } else {
           toast({
             title: "Erro no login",
-            description: error.message || "Credenciais inválidas",
+            description: error.message || "Erro inesperado ao fazer login.",
             variant: "destructive",
           });
         }
@@ -241,11 +254,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Sign up error:', error);
-        toast({
-          title: "Erro no cadastro",
-          description: error.message || "Erro ao criar conta",
-          variant: "destructive",
-        });
+        
+        // Mensagens de erro mais específicas para cadastro
+        if (error.message.includes('User already registered')) {
+          toast({
+            title: "Usuário já cadastrado",
+            description: "Este email já está registrado. Tente fazer login ou use outro email.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Password should be at least')) {
+          toast({
+            title: "Senha muito fraca",
+            description: "A senha deve ter pelo menos 6 caracteres.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro no cadastro",
+            description: error.message || "Erro ao criar conta",
+            variant: "destructive",
+          });
+        }
       } else if (data.user) {
         console.log('Sign up successful for user:', data.user.id);
         
@@ -323,6 +352,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
+      setNeedsClinicSelection(false);
       toast({
         title: "Logout realizado",
         description: "Você foi desconectado com sucesso.",
