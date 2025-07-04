@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -101,18 +102,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error checking user clinics:', error);
+        // Se não conseguir verificar as clínicas, sempre pedir seleção
         setNeedsClinicSelection(true);
         return;
       }
 
-      // Se não tem clínicas ou tem mais de uma, precisa selecionar
+      // Sempre pedir seleção de clínica após login (exceto superadmins)
       if (!userClinics || userClinics.length === 0) {
+        // Se não tem clínicas, mostrar mensagem apropriada na tela de seleção
         setNeedsClinicSelection(true);
-      } else if (userClinics.length === 1) {
-        // Se tem apenas uma clínica, não precisa selecionar
-        setNeedsClinicSelection(false);
       } else {
-        // Se tem múltiplas clínicas, precisa selecionar
+        // Sempre exibir seleção para permitir escolha da clínica
         setNeedsClinicSelection(true);
       }
     } catch (error) {

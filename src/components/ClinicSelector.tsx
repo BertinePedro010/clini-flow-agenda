@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, CheckCircle } from 'lucide-react';
+import { Building2, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Clinic {
   id: string;
@@ -89,13 +89,21 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-orange-600" />
+            </div>
             <CardTitle className="text-2xl font-bold text-slate-800">
-              Nenhuma Clínica Encontrada
+              Acesso Pendente
             </CardTitle>
-            <CardDescription>
-              Você não tem acesso a nenhuma clínica no momento. Entre em contato com o administrador.
+            <CardDescription className="text-center">
+              Você ainda não foi associado a nenhuma clínica. Entre em contato com o administrador do sistema para solicitar acesso a uma clínica.
             </CardDescription>
           </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-slate-500 mb-4">
+              Após ser associado a uma clínica, você poderá acessar o sistema normalmente.
+            </p>
+          </CardContent>
         </Card>
       </div>
     );
