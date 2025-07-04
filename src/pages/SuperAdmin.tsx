@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Building2, Plus, Edit, Trash2, Users, Phone, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ClinicUserManager from '@/components/ClinicUserManager';
+import UserMenu from '@/components/UserMenu';
 
 interface Clinic {
   id: string;
@@ -217,8 +218,17 @@ const SuperAdmin = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header com botão de logout */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Painel Administrativo</h1>
+          <p className="text-sm text-slate-500">Administração geral do sistema</p>
+        </div>
+        <UserMenu />
+      </div>
+
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-800">Painel Administrativo</h1>
+        <div className="flex-1" />
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => setIsDialogOpen(true)}>
