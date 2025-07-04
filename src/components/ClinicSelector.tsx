@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Building2, CheckCircle, AlertCircle, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface Clinic {
   id: string;
@@ -29,8 +30,9 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({
   onClinicSelected, 
   showHeader = true 
 }) => {
-  const { user, setClinicSelected } = useAuth();
+  const { user, setClinicSelected, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClinicId, setSelectedClinicId] = useState<string | null>(null);
@@ -73,6 +75,11 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({
     setClinicSelected();
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -87,24 +94,39 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({
   if (clinics.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-orange-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-slate-800">
-              Acesso Pendente
-            </CardTitle>
-            <CardDescription className="text-center">
-              Você ainda não foi associado a nenhuma clínica. Entre em contato com o administrador do sistema para solicitar acesso a uma clínica.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-sm text-slate-500 mb-4">
-              Após ser associado a uma clínica, você poderá acessar o sistema normalmente.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-md">
+          {/* Botão de logout no topo */}
+          <div className="flex justify-end mb-4">
+            <Button 
+              onClick={handleSignOut}
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8 text-orange-600" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-slate-800">
+                Acesso Pendente
+              </CardTitle>
+              <CardDescription className="text-center">
+                Você ainda não foi associado a nenhuma clínica. Entre em contato com o administrador do sistema para solicitar acesso a uma clínica.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-sm text-slate-500 mb-4">
+                Após ser associado a uma clínica, você poderá acessar o sistema normalmente.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -112,16 +134,28 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
-        {showHeader && (
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">
-              Selecione uma Clínica
-            </h1>
-            <p className="text-slate-600">
-              Escolha a clínica que deseja acessar para trabalhar
-            </p>
-          </div>
-        )}
+        {/* Header com botão de logout */}
+        <div className="flex justify-between items-center mb-8">
+          {showHeader && (
+            <div className="text-center flex-1">
+              <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                Selecione uma Clínica
+              </h1>
+              <p className="text-slate-600">
+                Escolha a clínica que deseja acessar para trabalhar
+              </p>
+            </div>
+          )}
+          <Button 
+            onClick={handleSignOut}
+            variant="outline"
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sair
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clinics.map((clinic) => (

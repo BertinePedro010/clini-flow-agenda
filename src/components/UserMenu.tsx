@@ -42,46 +42,55 @@ const UserMenu = () => {
   const isAdmin = profile.system_role === 'superadmin' || profile.system_role === 'clinic_admin';
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          <User className="w-4 h-4 mr-2" />
-          {profile.name}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleProfile}>
-          <UserCircle className="w-4 h-4 mr-2" />
-          <span>Perfil</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSettings}>
-          <Settings className="w-4 h-4 mr-2" />
-          <span>Configurações</span>
-        </DropdownMenuItem>
-        {isAdmin && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/admin')}>
-              <Shield className="w-4 h-4 mr-2" />
-              <span>Administração</span>
-            </DropdownMenuItem>
-          </>
-        )}
-        {isSuperAdmin && (
-          <DropdownMenuItem onClick={() => navigate('/superadmin')}>
-            <Crown className="w-4 h-4 mr-2" />
-            <span>Super Admin</span>
+    <div className="flex items-center gap-2">
+      {/* Botão de logout direto e visível */}
+      <Button 
+        onClick={handleSignOut}
+        variant="outline"
+        size="sm"
+        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+      >
+        <LogOut className="w-4 h-4 mr-2" />
+        Sair
+      </Button>
+
+      {/* Menu dropdown para outras opções */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <User className="w-4 h-4 mr-2" />
+            {profile.name}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleProfile}>
+            <UserCircle className="w-4 h-4 mr-2" />
+            <span>Perfil</span>
           </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut className="w-4 h-4 mr-2" />
-          <span>Sair</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem onClick={handleSettings}>
+            <Settings className="w-4 h-4 mr-2" />
+            <span>Configurações</span>
+          </DropdownMenuItem>
+          {isAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/admin')}>
+                <Shield className="w-4 h-4 mr-2" />
+                <span>Administração</span>
+              </DropdownMenuItem>
+            </>
+          )}
+          {isSuperAdmin && (
+            <DropdownMenuItem onClick={() => navigate('/superadmin')}>
+              <Crown className="w-4 h-4 mr-2" />
+              <span>Super Admin</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
 
