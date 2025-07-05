@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,6 +6,7 @@ import { useClinic } from '@/contexts/ClinicContext';
 import ClinicSelector from './ClinicSelector';
 import Sidebar from './Sidebar';
 import UserMenu from './UserMenu';
+import PanelSwitcher from './PanelSwitcher';
 
 const Layout = () => {
   const { user, profile, loading: authLoading, needsClinicSelection } = useAuth();
@@ -26,6 +28,22 @@ const Layout = () => {
   if (profile?.system_role === 'superadmin') {
     return (
       <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200 px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-800">
+                Sistema de Administração
+              </h1>
+              <p className="text-sm text-slate-500">
+                Painel Super Admin
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <PanelSwitcher />
+              <UserMenu />
+            </div>
+          </div>
+        </header>
         <main className="p-6">
           <Outlet />
         </main>
@@ -83,7 +101,10 @@ const Layout = () => {
                 </p>
               )}
             </div>
-            <UserMenu />
+            <div className="flex items-center gap-4">
+              <PanelSwitcher />
+              <UserMenu />
+            </div>
           </div>
         </header>
         <main className="p-6">
