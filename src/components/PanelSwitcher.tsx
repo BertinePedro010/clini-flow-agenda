@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } of@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Settings, Shield, Crown } from 'lucide-react';
 
 const PanelSwitcher = () => {
