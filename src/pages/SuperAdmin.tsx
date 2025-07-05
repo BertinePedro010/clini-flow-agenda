@@ -1,16 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Building2, Plus, Edit, Trash2, Users, Phone, Globe } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus } from 'lucide-react';
 import ClinicUserManager from '@/components/ClinicUserManager';
 import UserMenu from '@/components/UserMenu';
+import ClinicCard from '@/components/admin/ClinicCard';
+import ClinicForm from '@/components/admin/ClinicForm';
+import AdminStats from '@/components/admin/AdminStats';
 
 interface Clinic {
   id: string;
@@ -27,8 +28,15 @@ const SuperAdmin = () => {
   const { toast } = useToast();
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClinic, setEditingClinic] = useState<Clinic | null>(null);
+  const [stats, setStats] = useState({
+    totalClinics: 0,
+    totalUsers: 0,
+    activeAppointments: 0,
+    monthlyGrowth: 0
+  });
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -38,12 +46,38 @@ const SuperAdmin = () => {
 
   useEffect(() => {
     fetchClinics();
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      setStatsLoading(true);
+      
+      // Buscar estatísticas gerais
+      const [clinicsResult, usersResult, appointmentsResult] = await Promise.all([
+        supabase.from('clinics').select('id', { count: 'exact' }),
+        supabase.from('users_profiles').select('id', { count: 'exact' }),
+        supabase.from('appointments_schedule')
+          .select('id', { count: 'exact' })
+          .gte('appointment_date', new Date().toISOString().split('T')[0])
+      ]);
+
+      setStats({
+        totalClinics: clinicsResult.count || 0,
+        totalUsers: usersResult.count || 0,
+        activeAppointments: appointmentsResult.count || 0,
+        monthlyGrowth: 12 // Valor mock para demonstração
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   const fetchClinics = async () => {
     try {
       setLoading(true);
-      // Usar query direta para evitar problemas com RLS
       const { data, error } = await supabase
         .from('clinics')
         .select('*')
@@ -117,6 +151,7 @@ const SuperAdmin = () => {
             description: "Clínica atualizada com sucesso.",
           });
           fetchClinics();
+          fetchStats();
           setIsDialogOpen(false);
           resetForm();
         }
@@ -132,7 +167,7 @@ const SuperAdmin = () => {
             phone: formData.phone,
             plan_type: formData.plan_type,
             domain_slug: formData.domain_slug || slug,
-            owner_id: 'temp-owner' // Será atualizado quando um owner for atribuído
+            owner_id: 'temp-owner'
           });
 
         if (error) {
@@ -148,6 +183,7 @@ const SuperAdmin = () => {
             description: "Clínica criada com sucesso.",
           });
           fetchClinics();
+          fetchStats();
           setIsDialogOpen(false);
           resetForm();
         }
@@ -194,6 +230,7 @@ const SuperAdmin = () => {
             description: "Clínica excluída com sucesso.",
           });
           fetchClinics();
+          fetchStats();
         }
       } catch (error) {
         console.error('Error in handleDelete:', error);
@@ -218,7 +255,7 @@ const SuperAdmin = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header com botão de logout */}
+      {/* Header */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Painel Administrativo</h1>
@@ -227,81 +264,15 @@ const SuperAdmin = () => {
         <UserMenu />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex-1" />
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setIsDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Clínica
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingClinic ? 'Editar Clínica' : 'Nova Clínica'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingClinic 
-                  ? 'Edite as informações da clínica abaixo.'
-                  : 'Preencha as informações da nova clínica.'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit}>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome da Clínica</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="domain_slug">Domínio</Label>
-                  <Input
-                    id="domain_slug"
-                    value={formData.domain_slug}
-                    onChange={(e) => setFormData({ ...formData, domain_slug: e.target.value })}
-                    placeholder="exemplo (será: exemplo.clinica.com)"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="plan_type">Tipo de Plano</Label>
-                  <select
-                    id="plan_type"
-                    value={formData.plan_type}
-                    onChange={(e) => setFormData({ ...formData, plan_type: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="plus">Plus</option>
-                    <option value="ultra">Ultra</option>
-                  </select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                  Cancelar
-                </Button>
-                <Button type="submit">
-                  {editingClinic ? 'Atualizar' : 'Criar'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+      {/* Stats Dashboard */}
+      {!statsLoading && (
+        <AdminStats
+          totalClinics={stats.totalClinics}
+          totalUsers={stats.totalUsers}
+          activeAppointments={stats.activeAppointments}
+          monthlyGrowth={stats.monthlyGrowth}
+        />
+      )}
 
       <Tabs defaultValue="clinics" className="w-full">
         <TabsList>
@@ -310,6 +281,38 @@ const SuperAdmin = () => {
         </TabsList>
         
         <TabsContent value="clinics" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1" />
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setIsDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Clínica
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingClinic ? 'Editar Clínica' : 'Nova Clínica'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingClinic 
+                      ? 'Edite as informações da clínica abaixo.'
+                      : 'Preencha as informações da nova clínica.'
+                    }
+                  </DialogDescription>
+                </DialogHeader>
+                <ClinicForm
+                  editingClinic={editingClinic}
+                  formData={formData}
+                  setFormData={setFormData}
+                  onSubmit={handleSubmit}
+                  onCancel={handleCloseDialog}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
           {loading ? (
             <Card>
               <CardContent className="p-8 text-center">
@@ -320,54 +323,12 @@ const SuperAdmin = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {clinics.map((clinic) => (
-                <Card key={clinic.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <Badge variant="outline" className="capitalize">
-                        {clinic.plan_type}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg">{clinic.name}</CardTitle>
-                    <CardDescription>
-                      Criada em {new Date(clinic.created_at).toLocaleDateString('pt-BR')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {clinic.phone && (
-                      <div className="flex items-center text-sm text-slate-600">
-                        <Phone className="w-4 h-4 mr-2" />
-                        {clinic.phone}
-                      </div>
-                    )}
-                    {clinic.domain_slug && (
-                      <div className="flex items-center text-sm text-slate-600">
-                        <Globe className="w-4 h-4 mr-2" />
-                        {clinic.domain_slug}.clinica.com
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(clinic)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(clinic.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ClinicCard
+                  key={clinic.id}
+                  clinic={clinic}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
               ))}
             </div>
           )}
