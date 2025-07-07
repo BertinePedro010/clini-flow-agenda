@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,22 +60,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
           console.log('Profile not found, creating default profile');
-          const { data: newProfile, error: createError } = await supabase
+          // Aguardar um pouco para dar tempo ao trigger funcionar
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Tentar buscar novamente antes de criar
+          const { data: retryProfile, error: retryError } = await supabase
             .from('users_profiles')
-            .insert({
-              id: userId,
-              name: 'Usuário',
-              plan_type: 'normal',
-              trial_expires_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
-            })
-            .select()
+            .select('*')
+            .eq('id', userId)
             .single();
           
-          if (createError) {
-            console.error('Error creating profile:', createError);
-          } else {
-            console.log('Profile created:', newProfile);
-            setProfile(newProfile);
+          if (retryError && retryError.code === 'PGRST116') {
+            // Se ainda não existe, criar manualmente
+            const { data: newProfile, error: createError } = await supabase
+              .from('users_profiles')
+              .insert({
+                id: userId,
+                name: 'Usuário',
+                plan_type: 'normal',
+                trial_expires_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+              })
+              .select()
+              .single();
+            
+            if (createError) {
+              console.error('Error creating profile:', createError);
+            } else {
+              console.log('Profile created:', newProfile);
+              setProfile(newProfile);
+            }
+          } else if (retryProfile) {
+            console.log('Profile found on retry:', retryProfile);
+            setProfile(retryProfile);
           }
         }
       } else {
@@ -131,9 +146,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Aguardar um pouco para dar tempo ao trigger de criar perfil
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
-          }, 100);
+          }, 500);
         } else {
           setProfile(null);
           setNeedsClinicSelection(false);
@@ -266,6 +282,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           toast({
             title: "Senha muito fraca",
             description: "A senha deve ter pelo menos 6 caracteres.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes('Signup is disabled')) {
+          toast({
+            title: "Cadastro desabilitado",
+            description: "O cadastro está temporariamente desabilitado. Tente novamente mais tarde.",
             variant: "destructive",
           });
         } else {
