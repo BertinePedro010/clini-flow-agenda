@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, UserMinus, Shield, Building2 } from 'lucide-react';
+import { Users, UserMinus, Shield, Building2, RefreshCw } from 'lucide-react';
 import AddUserToClinicDialog from './AddUserToClinicDialog';
 
 interface UserClinicAssociation {
@@ -16,6 +16,7 @@ interface UserClinicAssociation {
   role: string;
   is_active: boolean;
   user_name: string;
+  user_email: string;
   clinic_name: string;
 }
 
@@ -34,6 +35,7 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [selectedClinicId, setSelectedClinicId] = useState<string | null>(clinicId || null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchClinics();
@@ -54,6 +56,11 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
 
       if (error) {
         console.error('Error fetching clinics:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as clínicas.",
+          variant: "destructive",
+        });
       } else {
         setClinics(data || []);
         if (!selectedClinicId && data && data.length > 0) {
@@ -62,6 +69,11 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
       }
     } catch (error) {
       console.error('Error in fetchClinics:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar clínicas.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -89,15 +101,31 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
           role: item.role,
           is_active: item.is_active,
           user_name: item.name,
+          user_email: item.email,
           clinic_name: clinics.find(c => c.id === selectedClinicId)?.name || '',
         }));
         setAssociations(mappedData);
       }
     } catch (error) {
       console.error('Error in fetchAssociations:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar usuários.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    await fetchAssociations();
+    setRefreshing(false);
+    toast({
+      title: "Atualizado",
+      description: "Lista de usuários atualizada com sucesso.",
+    });
   };
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
@@ -124,6 +152,43 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
       }
     } catch (error) {
       console.error('Error in toggleUserStatus:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao atualizar status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('clinic_users')
+        .update({ role: newRole })
+        .eq('user_id', userId)
+        .eq('clinic_id', selectedClinicId);
+
+      if (error) {
+        console.error('Error updating user role:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o papel do usuário.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Papel do usuário atualizado com sucesso.",
+        });
+        fetchAssociations();
+      }
+    } catch (error) {
+      console.error('Error in updateUserRole:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao atualizar papel.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -138,16 +203,27 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
               <Users className="w-5 h-5 mr-2" />
               Gerenciar Usuários das Clínicas
             </div>
-            {selectedClinic && (
-              <AddUserToClinicDialog
-                clinicId={selectedClinic.id}
-                clinicName={selectedClinic.name}
-                onUserAdded={fetchAssociations}
-              />
-            )}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={refreshData}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              {selectedClinic && (
+                <AddUserToClinicDialog
+                  clinicId={selectedClinic.id}
+                  clinicName={selectedClinic.name}
+                  onUserAdded={fetchAssociations}
+                />
+              )}
+            </div>
           </CardTitle>
           <CardDescription>
-            Gerencie o acesso dos usuários às clínicas do sistema
+            Gerencie o acesso e papéis dos usuários nas clínicas do sistema
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -187,22 +263,26 @@ const ClinicUserManager: React.FC<ClinicUserManagerProps> = ({ clinicId }) => {
                     </div>
                     <div>
                       <p className="font-medium text-slate-800">{association.user_name}</p>
-                      <p className="text-sm text-slate-600">{selectedClinic?.name}</p>
+                      <p className="text-sm text-slate-500">{association.user_email}</p>
+                      <p className="text-xs text-slate-400">{selectedClinic?.name}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-4">
-                    <div className="flex flex-col items-end space-y-1">
-                      <Badge variant={association.role === 'admin' ? 'default' : 'outline'}>
-                        {association.role === 'admin' ? (
-                          <>
-                            <Shield className="w-3 h-3 mr-1" />
-                            Admin
-                          </>
-                        ) : (
-                          'Usuário'
-                        )}
-                      </Badge>
+                    <div className="flex flex-col items-end space-y-2">
+                      <Select
+                        value={association.role}
+                        onValueChange={(newRole) => updateUserRole(association.user_id, newRole)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">Usuário</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
                       <Badge variant={association.is_active ? 'default' : 'destructive'}>
                         {association.is_active ? 'Ativo' : 'Inativo'}
                       </Badge>
