@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsClinicSelection, setNeedsClinicSelection] = useState(false);
   const { toast } = useToast();
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, retryCount = 0) => {
     try {
       console.log('Fetching profile for user:', userId);
       const { data: profileData, error } = await supabase
@@ -58,41 +59,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Error fetching profile:', error);
-        if (error.code === 'PGRST116') {
-          console.log('Profile not found, creating default profile');
-          // Aguardar um pouco para dar tempo ao trigger funcionar
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Tentar buscar novamente antes de criar
-          const { data: retryProfile, error: retryError } = await supabase
-            .from('users_profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-          
-          if (retryError && retryError.code === 'PGRST116') {
-            // Se ainda não existe, criar manualmente
-            const { data: newProfile, error: createError } = await supabase
-              .from('users_profiles')
-              .insert({
-                id: userId,
-                name: 'Usuário',
-                plan_type: 'normal',
-                trial_expires_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
-              })
-              .select()
-              .single();
-            
-            if (createError) {
-              console.error('Error creating profile:', createError);
-            } else {
-              console.log('Profile created:', newProfile);
-              setProfile(newProfile);
-            }
-          } else if (retryProfile) {
-            console.log('Profile found on retry:', retryProfile);
-            setProfile(retryProfile);
-          }
+        
+        // Se não encontrou o perfil e ainda não tentou muitas vezes, aguardar e tentar novamente
+        if (error.code === 'PGRST116' && retryCount < 3) {
+          console.log(`Profile not found, retrying in ${(retryCount + 1) * 500}ms...`);
+          setTimeout(() => {
+            fetchUserProfile(userId, retryCount + 1);
+          }, (retryCount + 1) * 500);
+          return;
         }
       } else {
         console.log('Profile loaded:', profileData);
@@ -147,8 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           // Aguardar um pouco para dar tempo ao trigger de criar perfil
-          setTimeout(async () => {
-            await fetchUserProfile(session.user.id);
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
           }, 500);
         } else {
           setProfile(null);
